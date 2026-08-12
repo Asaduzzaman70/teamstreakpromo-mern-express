@@ -1,15 +1,19 @@
-import express, { type Request, type Response, type NextFunction } from 'express';
+import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './routes/authRoutes.js';
+import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+// Setup Swagger UI Documentation
+setupSwagger(app);
+
 app.get('/', (req: Request, res: Response) => {
-    res.json({ message: 'TeamStreak Promo API is running!' });
+  res.json({ message: 'TeamStreak Promo API is running!' });
 });
 
 // Auth Routes
