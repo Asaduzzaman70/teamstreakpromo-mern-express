@@ -1,31 +1,22 @@
 import type { Request, Response } from 'express';
-import type { AuthenticatedRequest } from '../middlewares/authMiddleware.js';
-import { catchAsync } from '../utils/catchAsync.js';
-import { sendResponse } from '../utils/sendResponse.js';
-import { AppError } from '../utils/AppError.js';
-import {
-  registerSchema,
-  loginSchema,
-  forgotPasswordSchema,
-} from '../validations/authValidation.js';
+import type { AuthenticatedRequest } from '../../middlewares/authMiddleware.js';
+import { catchAsync } from '../../utils/catchAsync.js';
+import { sendResponse } from '../../utils/sendResponse.js';
+import { AppError } from '../../utils/AppError.js';
 import {
   registerUserService,
   loginUserService,
   forgotPasswordService,
+  verifyOtpService,
+  resetPasswordService,
   getMeService,
-} from '../services/authService.js';
+} from './auth.service.js';
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const parseResult = registerSchema.safeParse(req.body);
-  if (!parseResult.success) {
-    const firstIssue = parseResult.error.issues[0];
-    throw new AppError(firstIssue?.message || 'Validation error', 400);
-  }
-
-  const result = await registerUserService(parseResult.data);
+  const result = await registerUserService(req.body);
   sendResponse(res, {
     statusCode: 201,
     message: 'User registered successfully',
@@ -37,13 +28,7 @@ export const registerUser = catchAsync(async (req: Request, res: Response): Prom
 // @route   POST /api/auth/login
 // @access  Public
 export const loginUser = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const parseResult = loginSchema.safeParse(req.body);
-  if (!parseResult.success) {
-    const firstIssue = parseResult.error.issues[0];
-    throw new AppError(firstIssue?.message || 'Validation error', 400);
-  }
-
-  const result = await loginUserService(parseResult.data);
+  const result = await loginUserService(req.body);
   sendResponse(res, {
     statusCode: 200,
     message: 'User authenticated successfully',
@@ -51,19 +36,38 @@ export const loginUser = catchAsync(async (req: Request, res: Response): Promise
   });
 });
 
-// @desc    Forgot Password request
+// @desc    Forgot Password request - Sends OTP to user email
 // @route   POST /api/auth/forgot-password
 // @access  Public
 export const forgotPassword = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const parseResult = forgotPasswordSchema.safeParse(req.body);
-  if (!parseResult.success) {
-    const firstIssue = parseResult.error.issues[0];
-    throw new AppError(firstIssue?.message || 'Validation error', 400);
-  }
-
-  const result = await forgotPasswordService(parseResult.data);
+  const result = await forgotPasswordService(req.body);
   sendResponse(res, {
     statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});
+
+// @desc    Verify OTP code - Generates password reset token
+// @route   POST /api/auth/verify-otp
+// @access  Public
+export const verifyOtp = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await verifyOtpService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});
+
+// @desc    Reset password using reset token
+// @route   POST /api/auth/reset-password
+// @access  Public
+export const resetPassword = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await resetPasswordService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
     data: result,
   });
 });

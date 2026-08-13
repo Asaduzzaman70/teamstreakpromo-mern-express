@@ -5,6 +5,7 @@ import config from '../config/config.js';
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
+    role: string;
   };
 }
 
@@ -26,8 +27,11 @@ export const protect = async (
         return;
       }
 
-      const decoded = jwt.verify(token, config.jwtSecret) as { id: string };
-      req.user = { id: decoded.id };
+      const decoded = jwt.verify(token, config.jwtSecret) as {
+        id: string;
+        role: string;
+      };
+      req.user = { id: decoded.id, role: decoded.role };
       next();
     } catch (error) {
       res.status(401).json({ message: 'Not authorized, token invalid or expired' });
@@ -36,3 +40,16 @@ export const protect = async (
     res.status(401).json({ message: 'Not authorized, no token provided' });
   }
 };
+
+export const authorizeRoles = (...roles: string[]) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403).json({
+        message: `Forbidden: role '${req.user?.role || 'none'}' is not authorized to access this route`,
+      });
+      return;
+    }
+    next();
+  };
+};
+

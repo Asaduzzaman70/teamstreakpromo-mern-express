@@ -16,32 +16,28 @@ teamstreakpromo-mern-express/
 ├── package.json               # Dependencies and scripts setup
 ├── tsconfig.json              # TypeScript compiler options
 └── src/                       # Application source code
-    ├── app.ts                 # Express application initialization, Swagger setup & middleware
+    ├── app.ts                 # Express application initialization & middleware setup
     ├── server.ts              # Server entry point & database connection trigger
     ├── config/                # Environment and configuration files
     │   ├── config.ts          # Centralized configuration object
     │   └── db.ts              # MongoDB database connection helper
-    ├── controllers/           # HTTP Request & Response handlers
-    │   └── authController.ts  # Auth endpoints controller (delegates to authService & validates with Zod)
     ├── docs/                  # API Documentation & OpenAPI Specifications
     │   └── swagger.ts         # Swagger/OpenAPI 3.0 specification & setup middleware
-    ├── interfaces/            # TypeScript interface definitions & inferred types
-    │   └── authInterface.ts   # Authentication types and interfaces
-    ├── middlewares/           # Express custom middlewares
+    ├── middlewares/           # Express custom global middlewares
     │   ├── authMiddleware.ts  # JWT Authentication & Request protection middleware
     │   └── errorHandler.ts    # Global error handling middleware
-    ├── models/                # Mongoose database models & schemas
-    │   └── User.ts            # User schema, password hashing hooks, and comparison methods
-    ├── routes/                # Express routing definitions
-    │   └── authRoutes.ts      # Authentication routes definition (/api/auth)
-    ├── services/              # Business logic layer
-    │   └── authService.ts     # Auth business logic (registration, authentication, password reset, user profile)
-    ├── utils/                 # Application utilities & helpers
-    │   ├── AppError.ts        # Custom operational error class
-    │   ├── catchAsync.ts      # Async error handler wrapper for Express route handlers
-    │   └── sendResponse.ts    # Standardized API response formatter
-    └── validation/            # Runtime payload validation schemas
-        └── authValidation.ts  # Zod schemas for register, login, and forgotPassword
+    ├── modules/               # Feature modules
+    │   └── <module_name>/     # Feature module directory (e.g., auth, user, etc.)
+    │       ├── <module_name>.controller.ts # Request & response handlers
+    │       ├── <module_name>.interface.ts  # TypeScript interfaces & inferred types
+    │       ├── <module_name>.model.ts      # Mongoose database model & schema
+    │       ├── <module_name>.route.ts      # Express route definitions
+    │       ├── <module_name>.service.ts    # Domain & business logic
+    │       └── <module_name>.validation.ts # Zod payload validation schemas
+    └── utils/                 # Application utilities & helpers
+        ├── AppError.ts        # Custom operational error class
+        ├── catchAsync.ts      # Async error handler wrapper for Express route handlers
+        └── sendResponse.ts    # Standardized API response formatter
 ```
 
 ---
@@ -63,38 +59,40 @@ Interactive Swagger UI documentation is available when running the application s
 
 ---
 
-## Key Modules & Responsibilities
+## Key Architecture & Modular Responsibilities
 
-### 1. Documentation (`src/docs/swagger.ts`)
-- Contains full OpenAPI 3.0.0 specifications (paths, schemas, parameters, security definitions) isolated cleanly from route definitions.
-- Configures `swagger-jsdoc` and mounts Swagger UI (`swagger-ui-express`) on `/api-docs` and `/api-docs.json`.
+The application follows a **Modular Feature Architecture**. Each feature module is self-contained within `src/modules/<module_name>/` and follows consistent file naming (`<module_name>.<layer>.ts`):
 
-### 2. Controllers (`src/controllers/`)
-- Handles incoming HTTP requests (`req`) and formulates responses (`res`).
-- Performs runtime schema validation using Zod schemas from `src/validation/`.
-- Delegates business operations to the service layer (`src/services/`).
+### 1. Controllers (`<module_name>.controller.ts`)
+- Handles incoming HTTP requests (`req`) and formulates standard responses (`res`).
+- Performs runtime schema validation using Zod schemas from `<module_name>.validation.ts`.
+- Delegates business operations to the service layer (`<module_name>.service.ts`).
 - Catches errors and forwards them to Express `next(error)`.
 
-### 3. Services (`src/services/`)
-- Encapsulates all domain and business logic (e.g., user existence checks, password verification, token generation).
-- Interacts directly with database models (`src/models/`).
-- Throws errors with appropriate HTTP status codes for the error handler.
+### 2. Services (`<module_name>.service.ts`)
+- Encapsulates all domain and business logic (e.g., calculations, database operations, token generation).
+- Interacts directly with module database models (`<module_name>.model.ts`).
+- Throws operational errors (`AppError`) with appropriate HTTP status codes.
 
-### 4. Validation (`src/validation/`)
-- Uses **Zod** for schema definitions and runtime request payload validation.
-- Validates field presence, string formats (email), minimum lengths, boolean consent flags, and field matching (confirmPassword).
+### 3. Validation (`<module_name>.validation.ts`)
+- Uses **Zod** for runtime request payload validation schemas.
+- Validates field types, formats, constraints, and custom refinement rules.
 
-### 5. Interfaces (`src/interfaces/`)
-- Contains TypeScript type definitions, including types inferred directly from Zod validation schemas (`z.infer<typeof schema>`).
-- Defines API response contracts (`AuthResponse`, `ForgotPasswordResponse`, `UserProfileResponse`).
+### 4. Interfaces (`<module_name>.interface.ts`)
+- Defines TypeScript interface contracts and types inferred from Zod schemas (`z.infer<typeof schema>`).
+- Defines API response interfaces and payload DTOs.
 
-### 6. Models (`src/models/`)
-- Mongoose schemas and models defining data structure, validations, pre-save hooks (e.g. bcrypt password hashing), and instance methods.
+### 5. Models (`<module_name>.model.ts`)
+- Mongoose schemas and models defining database structure, indexes, middleware hooks, and instance methods.
 
-### 7. Middlewares & Routes (`src/middlewares/` & `src/routes/`)
-- `authMiddleware.ts`: Verifies JWT tokens in `Authorization: Bearer <token>` headers.
-- `errorHandler.ts`: Central error handler formatting standard JSON error responses.
-- `authRoutes.ts`: Clean Express route mappings (`/register`, `/login`, `/forgot-password`, `/me`).
+### 6. Routes (`<module_name>.route.ts`)
+- Defines Express route mappings and attaches middleware (e.g., `protect`) and controller handlers.
+
+### 7. Shared Cross-Cutting Modules
+- `src/middlewares/`: Shared global Express middlewares (`authMiddleware.ts`, `errorHandler.ts`).
+- `src/utils/`: Shared utilities (`AppError.ts`, `catchAsync.ts`, `sendResponse.ts`).
+- `src/config/`: Application configuration & DB connection helper.
+- `src/docs/`: OpenAPI / Swagger UI setup.
 
 
 schema

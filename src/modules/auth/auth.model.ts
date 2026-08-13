@@ -15,6 +15,7 @@ export interface IUser extends Document {
   agreesToTerms: boolean;
   createdAt: Date;
   updatedAt: Date;
+  isActive: Boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -61,6 +62,10 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       required: [true, 'Terms and conditions agreement is required'],
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    }
   },
   {
     timestamps: true,

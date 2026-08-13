@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { errorHandler } from './middlewares/errorHandler.js';
-import authRoutes from './routes/authRoutes.js';
+import authRoutes from './modules/auth/auth.route.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
