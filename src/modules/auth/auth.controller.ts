@@ -10,6 +10,7 @@ import {
   verifyOtpService,
   resetPasswordService,
   getMeService,
+  refreshTokenService,
 } from './auth.service.js';
 
 // @desc    Register a new user
@@ -84,5 +85,17 @@ export const getMe = catchAsync(async (req: AuthenticatedRequest, res: Response)
   sendResponse(res, {
     statusCode: 200,
     data: userProfile,
+  });
+});
+
+// @desc    Refresh access token using refresh token
+// @route   POST /api/auth/refresh-token
+// @access  Public
+export const refreshToken = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await refreshTokenService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Token refreshed successfully',
+    data: result,
   });
 });

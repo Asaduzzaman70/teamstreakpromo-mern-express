@@ -10,7 +10,9 @@ import type {
   ForgotPasswordInput,
   VerifyOtpInput,
   ResetPasswordInput,
+  RefreshTokenInput,
   AuthResponse,
+  RefreshTokenResponse,
   ForgotPasswordResponse,
   VerifyOtpResponse,
   ResetPasswordResponse,
@@ -193,4 +195,45 @@ export const getMeService = async (
   }
 
   return user.toObject() as UserProfileResponse;
+};
+
+export const refreshTokenService = async (
+  data: RefreshTokenInput
+): Promise<RefreshTokenResponse> => {
+  const { refreshToken } = data;
+
+  let decodedPayload: any;
+  try {
+    decodedPayload = jwt.verify(refreshToken, config.jwtRefreshSecret);
+  } catch (error) {
+    throw new AppError('Invalid or expired refresh token', 401);
+  }
+
+  if (!decodedPayload || !decodedPayload.id) {
+    throw new AppError('Invalid refresh token', 401);
+  }
+
+  const user = await User.findById(decodedPayload.id);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (!user.isActive) {
+    throw new AppError('Your account is not active (suspended or deleted)', 400);
+  }
+
+  if (user.refreshToken !== refreshToken) {
+    throw new AppError('Invalid or expired refresh token', 401);
+  }
+
+  const newAccessToken = generateAccessToken(user.id, user.role);
+  const newRefreshToken = generateRefreshToken(user.id, user.role);
+
+  user.refreshToken = newRefreshToken;
+  await user.save();
+
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  };
 };

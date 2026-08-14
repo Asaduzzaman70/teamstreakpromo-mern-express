@@ -123,6 +123,14 @@ direction TB
         FAILED
     }
 
+    class Category {
+        +ObjectId _id
+        +string name
+        +string description
+        +ObjectId parentCategory
+        +boolean isActive
+    }
+
     class User {
         +ObjectId _id
         +string name
@@ -172,6 +180,7 @@ direction TB
     class Event {
         +ObjectId _id
         +ObjectId hostId
+        +ObjectId categoryId
         +string title
         +double latitude
         +double longitude
@@ -241,4 +250,6 @@ direction TB
     Ticket "1" --> "1" TicketPayment : linked_to_payment
     User "1" --> "0..*" EventReferral : generates (User)
     Event "1" --> "0..*" EventReferral : linked_to
-    User "1" --> "0..*" Product : buys_with_points (User) 
+    User "1" --> "0..*" Product : buys_with_points (User)
+    Category "0..1" <-- "0..*" Category : parent_of (Subcategory)
+    Category "1" <-- "0..*" Event : belongs_to

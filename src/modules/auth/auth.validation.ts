@@ -77,3 +77,11 @@ export const resetPasswordSchema = z
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   });
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z
+    .string({ message: 'Refresh token is required' })
+    .trim()
+    .min(1, 'Refresh token is required'),
+});
+

@@ -39,7 +39,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['USER', 'HOST', 'BUSINESS'],
+      enum: ['USER', 'HOST', 'BUSINESS', 'ADMIN'],
       default: 'USER',
     },
     totalPoints: {

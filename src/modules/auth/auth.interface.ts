@@ -5,6 +5,7 @@ import type {
   forgotPasswordSchema,
   verifyOtpSchema,
   resetPasswordSchema,
+  refreshTokenSchema,
 } from './auth.validation.js';
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -12,12 +13,18 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
 export interface AuthResponse {
   _id: unknown;
   name: string;
   email: string;
   role: string;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
   accessToken: string;
   refreshToken: string;
 }

@@ -2,6 +2,7 @@ import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './modules/auth/auth.route.js';
+import categoryRoutes from './modules/category/category.route.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
@@ -16,8 +17,9 @@ app.get('/', (req: Request, res: Response) => {
   res.json({ message: 'TeamStreak Promo API is running!' });
 });
 
-// Auth Routes
+// Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Global error handler (should be after routes)
 app.use(errorHandler);

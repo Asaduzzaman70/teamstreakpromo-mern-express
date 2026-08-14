@@ -6,6 +6,7 @@ import {
   verifyOtp,
   resetPassword,
   getMe,
+  refreshToken,
 } from './auth.controller.js';
 import {
   registerSchema,
@@ -13,6 +14,7 @@ import {
   forgotPasswordSchema,
   verifyOtpSchema,
   resetPasswordSchema,
+  refreshTokenSchema,
 } from './auth.validation.js';
 import { protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
@@ -24,6 +26,7 @@ router.post('/login', validateRequest(loginSchema), loginUser);
 router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPassword);
 router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
+router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);
 router.get('/me', protect, getMe);
 
 export default router;
