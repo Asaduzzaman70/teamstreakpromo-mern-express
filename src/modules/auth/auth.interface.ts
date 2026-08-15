@@ -15,6 +15,8 @@ export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
+import type { IBusinessProfile } from '../businessProfile/businessProfile.interface.js';
+
 export interface AuthResponse {
   _id: unknown;
   name: string;
@@ -22,6 +24,7 @@ export interface AuthResponse {
   role: string;
   accessToken: string;
   refreshToken: string;
+  businessProfile?: IBusinessProfile | null;
 }
 
 export interface RefreshTokenResponse {
@@ -53,4 +56,6 @@ export interface UserProfileResponse {
   agreesToTerms: boolean;
   createdAt: Date;
   updatedAt: Date;
+  businessProfile?: IBusinessProfile | null;
 }
+

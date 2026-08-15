@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { businessProfileSchema } from '../businessProfile/businessProfile.validation.js';
 
 export const registerSchema = z
   .object({
@@ -19,20 +20,46 @@ export const registerSchema = z
       .optional()
       .default('USER'),
     isAgeOver18: z
-      .boolean({ message: 'Age confirmation is required' })
+      .preprocess(
+        (val) => (typeof val === 'string' ? val.toLowerCase() === 'true' : val),
+        z.boolean({ message: 'Age confirmation is required' })
+      )
       .refine((val) => val === true, {
         message: 'You must be 18+ years old to register',
       }),
     agreesToTerms: z
-      .boolean({ message: 'Terms agreement is required' })
+      .preprocess(
+        (val) => (typeof val === 'string' ? val.toLowerCase() === 'true' : val),
+        z.boolean({ message: 'Terms agreement is required' })
+      )
       .refine((val) => val === true, {
         message: 'You must agree to the terms and conditions',
       }),
+    businessProfile: businessProfileSchema.optional(),
+    businessName: z.string().trim().optional(),
+    businessDescription: z.string().trim().optional(),
+    location: z.string().trim().optional(),
+    einNumber: z.string().trim().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
+  })
+  .superRefine((data, ctx) => {
+    if (data.role === 'HOST' || data.role === 'BUSINESS') {
+      const hasNested = !!data.businessProfile;
+      const hasFlat = !!(data.businessName && data.businessDescription && data.location);
+
+      if (!hasNested && !hasFlat) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Business profile details (businessName, businessDescription, location) are required for HOST and BUSINESS roles',
+          path: ['businessProfile'],
+        });
+      }
+    }
   });
+
 
 export const loginSchema = z.object({
   email: z

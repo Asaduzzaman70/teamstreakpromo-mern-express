@@ -123,12 +123,36 @@ direction TB
         FAILED
     }
 
+    class VerificationStatus {
+        PENDING
+        APPROVED
+        REJECTED
+    }
+
     class Category {
         +ObjectId _id
         +string name
         +string description
         +ObjectId parentCategory
         +boolean isActive
+    }
+
+    class BusinessProfile {
+        +ObjectId _id
+        +ObjectId userId
+        +string businessName
+        +string businessDescription
+        +string einNumber
+        +string location
+        +string govtIdFrontImage
+        +string govtIdBackImage
+        +string businessLicenseFrontImage
+        +string businessLicenseBackImage
+        +VerificationStatus verificationStatus
+        +date submittedAt
+        +date verifiedAt
+        +updateProfile(ProfileData)
+        +submitForVerification()
     }
 
     class User {
@@ -237,10 +261,14 @@ direction TB
     <<enumeration>> UserRole
     <<enumeration>> EmployerType
     <<enumeration>> TicketPaymentStatus
+    <<enumeration>> VerificationStatus
 
     User --> UserRole : has_role
     Employee --> EmployerType : belongs_to_type
     TicketPayment --> TicketPaymentStatus : tracking_status
+    BusinessProfile --> VerificationStatus : verification_state
+    
+    User "1" --> "0..1" BusinessProfile : has_profile (Host/Business)
     User "1" --> "0..*" Event : creates (Host)
     User "1" --> "0..*" Employee : hires (Host/Business)
     User "1" --> "0..*" Product : sells (Business)

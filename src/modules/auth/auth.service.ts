@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { User } from './auth.model.js';
+import { BusinessProfile } from '../businessProfile/businessProfile.model.js';
+import type { IBusinessProfile } from '../businessProfile/businessProfile.interface.js';
 import config from '../../config/config.js';
 import { AppError } from '../../utils/AppError.js';
+import { uploadToS3 } from '../../utils/s3.js';
 import { createOtpService, verifyOtpService as verifyOtpFromService } from '../otp/otp.service.js';
 import { sendOtpEmail } from '../../utils/sendEmail.js';
 import type {
@@ -38,13 +41,51 @@ const generateResetToken = (email: string): string => {
 };
 
 export const registerUserService = async (
-  data: RegisterInput
+  data: RegisterInput,
+  files?: { [fieldname: string]: Express.Multer.File[] }
 ): Promise<AuthResponse> => {
-  const { name, email, password, role, isAgeOver18, agreesToTerms } = data;
+  const { name, email, password, role, isAgeOver18, agreesToTerms, businessProfile } = data;
 
   const userExists = await User.findOne({ email });
   if (userExists) {
     throw new AppError('User already exists with this email', 400);
+  }
+
+  let finalBusinessProfile: any = businessProfile ? { ...businessProfile } : null;
+
+  if (!finalBusinessProfile && (data.businessName || data.businessDescription || data.location)) {
+    finalBusinessProfile = {
+      businessName: data.businessName,
+      businessDescription: data.businessDescription,
+      location: data.location,
+      einNumber: data.einNumber,
+    };
+  }
+
+  if ((role === 'HOST' || role === 'BUSINESS') && !finalBusinessProfile) {
+    throw new AppError('Business profile details (businessName, businessDescription, location) are required for HOST and BUSINESS roles', 400);
+  }
+
+  if (role === 'HOST' || role === 'BUSINESS') {
+    const requiredImageFields = [
+      { name: 'govtIdFrontImage', label: 'Govt ID front image' },
+      { name: 'govtIdBackImage', label: 'Govt ID back image' },
+      { name: 'businessLicenseFrontImage', label: 'Business license front image' },
+      { name: 'businessLicenseBackImage', label: 'Business license back image' },
+    ];
+
+    for (const field of requiredImageFields) {
+      const fileObj = files?.[field.name]?.[0];
+      const existingUrl = finalBusinessProfile?.[field.name];
+
+      if (fileObj) {
+        // Upload image buffer from RAM memory to AWS S3 inside service layer
+        const s3Url = await uploadToS3(fileObj, 'business-documents');
+        finalBusinessProfile[field.name] = s3Url;
+      } else if (!existingUrl) {
+        throw new AppError(`${field.label} is required`, 400);
+      }
+    }
   }
 
   const user = new User({
@@ -62,6 +103,23 @@ export const registerUserService = async (
   user.refreshToken = refreshToken;
   await user.save();
 
+  let createdBusinessProfile: IBusinessProfile | null = null;
+  if ((user.role === 'HOST' || user.role === 'BUSINESS') && finalBusinessProfile) {
+    createdBusinessProfile = await BusinessProfile.create({
+      userId: user._id as any,
+      businessName: finalBusinessProfile.businessName,
+      businessDescription: finalBusinessProfile.businessDescription,
+      einNumber: finalBusinessProfile.einNumber || '',
+      location: finalBusinessProfile.location,
+      govtIdFrontImage: finalBusinessProfile.govtIdFrontImage,
+      govtIdBackImage: finalBusinessProfile.govtIdBackImage,
+      businessLicenseFrontImage: finalBusinessProfile.businessLicenseFrontImage,
+      businessLicenseBackImage: finalBusinessProfile.businessLicenseBackImage,
+      submittedAt: new Date(),
+      verificationStatus: 'PENDING',
+    });
+  }
+
   return {
     _id: user._id,
     name: user.name,
@@ -69,6 +127,7 @@ export const registerUserService = async (
     role: user.role,
     accessToken,
     refreshToken,
+    businessProfile: createdBusinessProfile ? (createdBusinessProfile.toObject() as IBusinessProfile) : null,
   };
 };
 
@@ -97,6 +156,14 @@ export const loginUserService = async (
   user.refreshToken = refreshToken;
   await user.save();
 
+  let businessProfileData = null;
+  if (user.role === 'HOST' || user.role === 'BUSINESS') {
+    const profile = await BusinessProfile.findOne({ userId: user._id });
+    if (profile) {
+      businessProfileData = profile.toObject() as IBusinessProfile;
+    }
+  }
+
   return {
     _id: user._id,
     name: user.name,
@@ -104,6 +171,7 @@ export const loginUserService = async (
     role: user.role,
     accessToken,
     refreshToken,
+    businessProfile: businessProfileData,
   };
 };
 
@@ -194,7 +262,14 @@ export const getMeService = async (
     throw new AppError('User not found', 404);
   }
 
-  return user.toObject() as UserProfileResponse;
+  const userObj = user.toObject() as UserProfileResponse;
+
+  if (user.role === 'HOST' || user.role === 'BUSINESS') {
+    const businessProfile = await BusinessProfile.findOne({ userId: user._id });
+    userObj.businessProfile = businessProfile ? (businessProfile.toObject() as IBusinessProfile) : null;
+  }
+
+  return userObj;
 };
 
 export const refreshTokenService = async (

@@ -18,10 +18,23 @@ import {
 } from './auth.validation.js';
 import { protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
+import { uploadFields } from '../../middlewares/multer.middleware.js';
 
 const router = Router();
 
-router.post('/register', validateRequest(registerSchema), registerUser);
+const registrationImageFields = uploadFields([
+  { name: 'govtIdFrontImage', maxCount: 1 },
+  { name: 'govtIdBackImage', maxCount: 1 },
+  { name: 'businessLicenseFrontImage', maxCount: 1 },
+  { name: 'businessLicenseBackImage', maxCount: 1 },
+]);
+
+router.post(
+  '/register',
+  registrationImageFields,
+  validateRequest(registerSchema),
+  registerUser
+);
 router.post('/login', validateRequest(loginSchema), loginUser);
 router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPassword);
 router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);

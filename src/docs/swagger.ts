@@ -35,6 +35,29 @@ const options: swaggerJsdoc.Options = {
           requestBody: {
             required: true,
             content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  required: ['name', 'email', 'password', 'confirmPassword', 'isAgeOver18', 'agreesToTerms'],
+                  properties: {
+                    name: { type: 'string', example: 'John Host' },
+                    email: { type: 'string', example: 'host@example.com' },
+                    password: { type: 'string', example: 'password123' },
+                    confirmPassword: { type: 'string', example: 'password123' },
+                    role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'HOST', default: 'USER' },
+                    isAgeOver18: { type: 'boolean', example: true },
+                    agreesToTerms: { type: 'boolean', example: true },
+                    businessName: { type: 'string', example: 'Acme Corp', description: 'Required for HOST/BUSINESS' },
+                    businessDescription: { type: 'string', example: 'Event management & hosting', description: 'Required for HOST/BUSINESS' },
+                    einNumber: { type: 'string', example: '12-3456789', description: 'Optional for HOST/BUSINESS' },
+                    location: { type: 'string', example: 'New York, NY', description: 'Required for HOST/BUSINESS' },
+                    govtIdFrontImage: { type: 'string', format: 'binary', description: 'Govt ID Front Image (File upload for HOST/BUSINESS)' },
+                    govtIdBackImage: { type: 'string', format: 'binary', description: 'Govt ID Back Image (File upload for HOST/BUSINESS)' },
+                    businessLicenseFrontImage: { type: 'string', format: 'binary', description: 'Business License Front Image (File upload for HOST/BUSINESS)' },
+                    businessLicenseBackImage: { type: 'string', format: 'binary', description: 'Business License Back Image (File upload for HOST/BUSINESS)' },
+                  },
+                },
+              },
               'application/json': {
                 schema: {
                   type: 'object',
@@ -47,6 +70,29 @@ const options: swaggerJsdoc.Options = {
                     role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'USER', default: 'USER' },
                     isAgeOver18: { type: 'boolean', example: true },
                     agreesToTerms: { type: 'boolean', example: true },
+                    businessProfile: {
+                      type: 'object',
+                      description: 'Required if role is HOST or BUSINESS. einNumber is optional.',
+                      required: [
+                        'businessName',
+                        'businessDescription',
+                        'location',
+                        'govtIdFrontImage',
+                        'govtIdBackImage',
+                        'businessLicenseFrontImage',
+                        'businessLicenseBackImage',
+                      ],
+                      properties: {
+                        businessName: { type: 'string', example: 'Acme Corp' },
+                        businessDescription: { type: 'string', example: 'Event management & venue services' },
+                        einNumber: { type: 'string', example: '12-3456789' },
+                        location: { type: 'string', example: 'New York, NY' },
+                        govtIdFrontImage: { type: 'string', example: 'https://example.com/govt_front.jpg' },
+                        govtIdBackImage: { type: 'string', example: 'https://example.com/govt_back.jpg' },
+                        businessLicenseFrontImage: { type: 'string', example: 'https://example.com/license_front.jpg' },
+                        businessLicenseBackImage: { type: 'string', example: 'https://example.com/license_back.jpg' },
+                      },
+                    },
                   },
                 },
               },

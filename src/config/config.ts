@@ -17,6 +17,10 @@ interface Config {
   smtpUser: string;
   smtpPass: string;
   emailFrom: string;
+  awsAccessKeyId: string;
+  awsSecretAccessKey: string;
+  awsRegion: string;
+  awsS3BucketName: string;
 }
 
 const config: Config = {
@@ -34,6 +38,10 @@ const config: Config = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || 'TeamStreak Promo <noreply@teamstreakpromo.com>',
+  awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+  awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+  awsRegion: process.env.AWS_REGION || 'us-east-1',
+  awsS3BucketName: process.env.AWS_S3_BUCKET_NAME || 'teamstreakpromo-bucket',
 };
 
 export default config;

@@ -17,7 +17,7 @@ import {
 // @route   POST /api/auth/register
 // @access  Public
 export const registerUser = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const result = await registerUserService(req.body);
+  const result = await registerUserService(req.body, req.files as any);
   sendResponse(res, {
     statusCode: 201,
     message: 'User registered successfully',
