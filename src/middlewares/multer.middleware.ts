@@ -40,3 +40,9 @@ export const uploadFields = (fields: Field[]) => upload.fields(fields);
  */
 export const uploadArray = (fieldName: string, maxCount: number = 10) =>
   upload.array(fieldName, maxCount);
+
+/**
+ * Generic any files upload middleware helper.
+ */
+export const uploadAny = () => upload.any();
+
