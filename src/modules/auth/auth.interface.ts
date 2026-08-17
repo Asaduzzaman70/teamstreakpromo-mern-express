@@ -45,6 +45,10 @@ export interface ResetPasswordResponse {
   message: string;
 }
 
+export interface LogoutResponse {
+  message: string;
+}
+
 export interface UserProfileResponse {
   _id: unknown;
   name: string;

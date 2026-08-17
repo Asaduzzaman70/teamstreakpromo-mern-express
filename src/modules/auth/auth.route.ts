@@ -7,6 +7,7 @@ import {
   resetPassword,
   getMe,
   refreshToken,
+  logoutUser,
 } from './auth.controller.js';
 import {
   registerSchema,
@@ -40,6 +41,7 @@ router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPas
 router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);
+router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
 
 export default router;

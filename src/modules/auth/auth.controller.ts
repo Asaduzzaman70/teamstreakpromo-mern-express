@@ -11,6 +11,7 @@ import {
   resetPasswordService,
   getMeService,
   refreshTokenService,
+  logoutUserService,
 } from './auth.service.js';
 
 // @desc    Register a new user
@@ -99,3 +100,20 @@ export const refreshToken = catchAsync(async (req: Request, res: Response): Prom
     data: result,
   });
 });
+
+// @desc    Logout user & clear refresh token
+// @route   POST /api/auth/logout
+// @access  Private
+export const logoutUser = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
+
+  const result = await logoutUserService(req.user.id);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});
+

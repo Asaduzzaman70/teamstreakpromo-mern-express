@@ -20,6 +20,7 @@ import type {
   VerifyOtpResponse,
   ResetPasswordResponse,
   UserProfileResponse,
+  LogoutResponse,
 } from './auth.interface.js';
 
 const generateAccessToken = (id: string, role: string): string => {
@@ -312,3 +313,20 @@ export const refreshTokenService = async (
     refreshToken: newRefreshToken,
   };
 };
+
+export const logoutUserService = async (
+  userId: string
+): Promise<LogoutResponse> => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  user.refreshToken = '';
+  await user.save();
+
+  return {
+    message: 'User logged out successfully',
+  };
+};
+

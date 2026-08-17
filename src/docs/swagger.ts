@@ -1,5 +1,4 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
 import type { Express, Request, Response } from 'express';
 import config from '../config/config.js';
 
@@ -466,6 +465,54 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
+      '/api/auth/logout': {
+        post: {
+          summary: 'Logout user & invalidate refresh token',
+          tags: ['Authentication'],
+          security: [
+            {
+              bearerAuth: [],
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'User logged out successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      statusCode: { type: 'number', example: 200 },
+                      message: { type: 'string', example: 'User logged out successfully' },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          message: { type: 'string', example: 'User logged out successfully' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '401': {
+              description: 'Unauthorized - Missing or invalid token',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: false },
+                      message: { type: 'string', example: 'Not authorized, token missing' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       '/api/auth/me': {
         get: {
           summary: 'Get currently authenticated user profile',
@@ -720,17 +767,53 @@ const options: swaggerJsdoc.Options = {
 export const swaggerSpec = swaggerJsdoc(options);
 
 export const setupSwagger = (app: Express): void => {
-  app.use(
-    '/api-docs',
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec, {
-      swaggerOptions: {
-        defaultModelsExpandDepth: -1, // Hides the Schemas/Models section at bottom of UI
-      },
-    })
-  );
   app.get('/api-docs.json', (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
     res.send(swaggerSpec);
+  });
+
+  app.get(['/api-docs', '/api-docs/'], (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <title>TeamStreak Promo API Documentation</title>
+        <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui.min.css" />
+        <link rel="icon" type="image/png" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/favicon-32x32.png" />
+        <style>
+          html { box-sizing: border-box; overflow-y: scroll; }
+          *, *:before, *:after { box-sizing: inherit; }
+          body { margin: 0; background: #fafafa; }
+          .swagger-ui .topbar { display: none; }
+        </style>
+      </head>
+      <body>
+        <div id="swagger-ui"></div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-bundle.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-standalone-preset.js"></script>
+        <script>
+          window.onload = function() {
+            const ui = SwaggerUIBundle({
+              spec: ${JSON.stringify(swaggerSpec)},
+              dom_id: '#swagger-ui',
+              deepLinking: true,
+              presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIStandalonePreset
+              ],
+              plugins: [
+                SwaggerUIBundle.plugins.DownloadUrl
+              ],
+              layout: "StandaloneLayout",
+              defaultModelsExpandDepth: -1
+            });
+            window.ui = ui;
+          };
+        </script>
+      </body>
+      </html>
+    `);
   });
 };
