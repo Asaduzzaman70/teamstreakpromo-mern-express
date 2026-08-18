@@ -158,3 +158,23 @@ export const getEventByIdService = async (
 
   return event;
 };
+
+export const deleteEventService = async (
+  id: string,
+  userId: string,
+  userRole: string
+): Promise<IEvent> => {
+  const event = await Event.findById(id);
+
+  if (!event) {
+    throw new AppError('Event not found', 404);
+  }
+
+  if (event.hostId.toString() !== userId && userRole !== 'ADMIN') {
+    throw new AppError('Forbidden: You are not authorized to delete this event', 403);
+  }
+
+  await Event.findByIdAndDelete(id);
+
+  return event;
+};

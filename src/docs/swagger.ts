@@ -1013,6 +1013,26 @@ const options: swaggerJsdoc.Options = {
             '404': { description: 'Event not found' },
           },
         },
+        delete: {
+          summary: 'Delete an event by ID',
+          tags: ['Event'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Event ID',
+            },
+          ],
+          responses: {
+            '200': { description: 'Event deleted successfully' },
+            '401': { description: 'Not authorized' },
+            '403': { description: 'Forbidden: Not authorized to delete this event' },
+            '404': { description: 'Event not found' },
+          },
+        },
       },
     },
   },

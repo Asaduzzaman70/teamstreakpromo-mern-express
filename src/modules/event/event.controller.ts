@@ -3,7 +3,12 @@ import type { AuthenticatedRequest } from '../../middlewares/authMiddleware.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
 import { AppError } from '../../utils/AppError.js';
-import { createEventService, getAllEventsAdminService, getEventByIdService } from './event.service.js';
+import {
+  createEventService,
+  getAllEventsAdminService,
+  getEventByIdService,
+  deleteEventService,
+} from './event.service.js';
 
 // @desc    Create a new event
 // @route   POST /api/events
@@ -46,6 +51,23 @@ export const getEventById = catchAsync(async (req: Request, res: Response): Prom
   sendResponse(res, {
     statusCode: 200,
     message: 'Event details retrieved successfully',
+    data: result,
+  });
+});
+
+// @desc    Delete an event by ID
+// @route   DELETE /api/events/:id
+// @access  Private (Event Owner Host / Admin)
+export const deleteEvent = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
+
+  const result = await deleteEventService(req.params.id as string, req.user.id, req.user.role);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Event deleted successfully',
     data: result,
   });
 });

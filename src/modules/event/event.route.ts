@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createEvent, getAllEventsAdmin, getEventById } from './event.controller.js';
+import { createEvent, getAllEventsAdmin, getEventById, deleteEvent } from './event.controller.js';
 import { createEventSchema } from './event.validation.js';
 import { authorizeRoles, protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
@@ -23,6 +23,9 @@ router
   )
   .get(protect, getAllEventsAdmin);
 
-router.get('/:id', protect, getEventById);
+router
+  .route('/:id')
+  .get(protect, getEventById)
+  .delete(protect, deleteEvent);
 
 export default router;
