@@ -103,7 +103,7 @@ const options: swaggerJsdoc.Options = {
           },
           responses: {
             '201': {
-              description: 'User registered successfully',
+              description: 'User registered successfully. Activation OTP sent to email.',
               content: {
                 'application/json': {
                   schema: {
@@ -111,16 +111,12 @@ const options: swaggerJsdoc.Options = {
                     properties: {
                       success: { type: 'boolean', example: true },
                       statusCode: { type: 'number', example: 201 },
-                      message: { type: 'string', example: 'User registered successfully' },
+                      message: { type: 'string', example: 'User registered successfully. Please verify your email with the activation OTP sent to your inbox.' },
                       data: {
                         type: 'object',
                         properties: {
-                          _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
-                          name: { type: 'string', example: 'John Doe' },
+                          message: { type: 'string', example: 'User registered successfully. Please verify your email with the activation OTP sent to your inbox.' },
                           email: { type: 'string', example: 'john@example.com' },
-                          role: { type: 'string', example: 'USER' },
-                          accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
-                          refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
                         },
                       },
                     },
@@ -141,6 +137,108 @@ const options: swaggerJsdoc.Options = {
                   },
                 },
               },
+            },
+          },
+        },
+      },
+      '/api/auth/verify-register-otp': {
+        post: {
+          summary: 'Verify registration OTP & activate account (returns JWT access/refresh tokens)',
+          tags: ['Authentication'],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['email', 'otp'],
+                  properties: {
+                    email: { type: 'string', example: 'john@example.com' },
+                    otp: { type: 'string', example: '123456' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Account verified & activated successfully. Tokens generated.',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      statusCode: { type: 'number', example: 200 },
+                      message: { type: 'string', example: 'Account verified & activated successfully' },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
+                          name: { type: 'string', example: 'John Doe' },
+                          email: { type: 'string', example: 'john@example.com' },
+                          role: { type: 'string', example: 'USER' },
+                          accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+                          refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '400': {
+              description: 'Invalid or expired OTP code',
+            },
+          },
+        },
+      },
+      '/api/auth/resend-activation-otp': {
+        post: {
+          summary: 'Resend account activation OTP to email',
+          tags: ['Authentication'],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['email'],
+                  properties: {
+                    email: { type: 'string', example: 'john@example.com' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Account activation OTP resent successfully',
+            },
+          },
+        },
+      },
+      '/api/auth/resend-forgot-password-otp': {
+        post: {
+          summary: 'Resend forgot password OTP to email',
+          tags: ['Authentication'],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['email'],
+                  properties: {
+                    email: { type: 'string', example: 'john@example.com' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Forgot password OTP resent successfully',
             },
           },
         },
@@ -279,7 +377,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
-      '/api/auth/verify-otp': {
+      '/api/auth/verify-forgot-password-otp': {
         post: {
           summary: 'Verify 6-digit OTP code and get password reset token',
           tags: ['Authentication'],

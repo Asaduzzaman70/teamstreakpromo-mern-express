@@ -17,6 +17,11 @@ export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 
 import type { IBusinessProfile } from '../businessProfile/businessProfile.interface.js';
 
+export interface RegisterResponse {
+  message: string;
+  email: string;
+}
+
 export interface AuthResponse {
   _id: unknown;
   name: string;

@@ -16,6 +16,7 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   isActive: Boolean;
+  isSuspend: Boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -64,7 +65,11 @@ const UserSchema = new Schema<IUser>(
     },
     isActive: {
       type: Boolean,
-      default: true,
+      default: false,
+    },
+    isSuspend: {
+      type: Boolean,
+      default: false,
     }
   },
   {

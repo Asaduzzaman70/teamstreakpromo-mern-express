@@ -14,6 +14,7 @@ import type {
   VerifyOtpInput,
   ResetPasswordInput,
   RefreshTokenInput,
+  RegisterResponse,
   AuthResponse,
   RefreshTokenResponse,
   ForgotPasswordResponse,
@@ -44,12 +45,16 @@ const generateResetToken = (email: string): string => {
 export const registerUserService = async (
   data: RegisterInput,
   files?: { [fieldname: string]: Express.Multer.File[] }
-): Promise<AuthResponse> => {
+): Promise<RegisterResponse> => {
   const { name, email, password, role, isAgeOver18, agreesToTerms, businessProfile } = data;
 
   const userExists = await User.findOne({ email });
+
   if (userExists) {
-    throw new AppError('User already exists with this email', 400);
+    if (userExists.isActive) {
+      throw new AppError('User already exists with this email', 400);
+    }
+    throw new AppError('An account with this email already exists but is not activated. Please verify your email using the OTP or request a new activation OTP.', 400);
   }
 
   let finalBusinessProfile: any = businessProfile ? { ...businessProfile } : null;
@@ -96,17 +101,13 @@ export const registerUserService = async (
     role,
     isAgeOver18,
     agreesToTerms,
+    isActive: false,
   });
 
-  const accessToken = generateAccessToken(user.id, user.role);
-  const refreshToken = generateRefreshToken(user.id, user.role);
-
-  user.refreshToken = refreshToken;
   await user.save();
 
-  let createdBusinessProfile: IBusinessProfile | null = null;
   if ((user.role === 'HOST' || user.role === 'BUSINESS') && finalBusinessProfile) {
-    createdBusinessProfile = await BusinessProfile.create({
+    await BusinessProfile.create({
       userId: user._id as any,
       businessName: finalBusinessProfile.businessName,
       businessDescription: finalBusinessProfile.businessDescription,
@@ -121,14 +122,22 @@ export const registerUserService = async (
     });
   }
 
-  return {
-    _id: user._id,
-    name: user.name,
+  // Generate 6-digit activation OTP and send to user's email
+  const otp = await createOtpService({
     email: user.email,
-    role: user.role,
-    accessToken,
-    refreshToken,
-    businessProfile: createdBusinessProfile ? (createdBusinessProfile.toObject() as IBusinessProfile) : null,
+    purpose: 'EMAIL_VERIFICATION',
+    expirationMinutes: 10,
+  });
+
+  await sendOtpEmail({
+    to: user.email,
+    otp,
+    purposeTitle: 'Account Activation',
+  });
+
+  return {
+    message: 'User registered successfully. Please verify your email with the activation OTP sent to your inbox.',
+    email: user.email,
   };
 };
 
@@ -143,7 +152,11 @@ export const loginUserService = async (
   }
 
   if (!user.isActive) {
-    throw new AppError('Your account is not active (suspended or deleted)', 400);
+    throw new AppError('Your account is not active', 400);
+  }
+
+  if (user.isSuspend) {
+    throw new AppError('Your account is suspend please contact support', 400);
   }
 
   const isMatch = await user.comparePassword(password);
@@ -223,6 +236,120 @@ export const verifyOtpService = async (
   return {
     message: 'OTP verified successfully.',
     resetToken,
+  };
+};
+
+export const verifyRegisterOtpService = async (
+  data: VerifyOtpInput
+): Promise<AuthResponse> => {
+  const { email, otp } = data;
+
+  // Verify OTP using OTP service for EMAIL_VERIFICATION
+  await verifyOtpFromService({
+    email,
+    otp,
+    purpose: 'EMAIL_VERIFICATION',
+  });
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  if (user.isSuspend) {
+    throw new AppError('Your account is suspend please contact support', 400);
+  }
+
+  user.isActive = true;
+
+  const accessToken = generateAccessToken(user.id, user.role);
+  const refreshToken = generateRefreshToken(user.id, user.role);
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  let businessProfileData: IBusinessProfile | null = null;
+  if (user.role === 'HOST' || user.role === 'BUSINESS') {
+    const profile = await BusinessProfile.findOne({ userId: user._id });
+    if (profile) {
+      businessProfileData = profile.toObject() as IBusinessProfile;
+    }
+  }
+
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    accessToken,
+    refreshToken,
+    businessProfile: businessProfileData,
+  };
+};
+
+export const resendForgotPasswordOtpService = async (
+  data: ForgotPasswordInput
+): Promise<ForgotPasswordResponse> => {
+  const { email } = data;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError('No account found with this email address', 404);
+  }
+
+  if (user.isSuspend) {
+    throw new AppError('Your account is suspend please contact support', 400);
+  }
+
+  const otp = await createOtpService({
+    email: user.email,
+    purpose: 'FORGOT_PASSWORD',
+    expirationMinutes: 10,
+  });
+
+  await sendOtpEmail({
+    to: user.email,
+    otp,
+    purposeTitle: 'Password Reset',
+  });
+
+  return {
+    message: 'Forgot password OTP has been resent to your email address.',
+  };
+};
+
+export const resendActivationOtpService = async (
+  data: ForgotPasswordInput
+): Promise<ForgotPasswordResponse> => {
+  const { email } = data;
+
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw new AppError('No account found with this email address', 404);
+  }
+
+  if (user.isActive) {
+    throw new AppError('Account is already active. You can log in.', 400);
+  }
+
+  if (user.isSuspend) {
+    throw new AppError('Your account is suspend please contact support', 400);
+  }
+
+  const otp = await createOtpService({
+    email: user.email,
+    purpose: 'EMAIL_VERIFICATION',
+    expirationMinutes: 10,
+  });
+
+  await sendOtpEmail({
+    to: user.email,
+    otp,
+    purposeTitle: 'Account Activation',
+  });
+
+  return {
+    message: 'Account activation OTP has been resent to your email address.',
   };
 };
 

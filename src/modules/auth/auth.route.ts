@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import {
   registerUser,
+  verifyRegisterOtp,
+  resendForgotPasswordOtp,
+  resendActivationOtp,
   loginUser,
   forgotPassword,
   verifyOtp,
@@ -36,8 +39,13 @@ router.post(
   validateRequest(registerSchema),
   registerUser
 );
+router.post('/verify-register-otp', validateRequest(verifyOtpSchema), verifyRegisterOtp);
+router.post('/verify-account', validateRequest(verifyOtpSchema), verifyRegisterOtp);
+router.post('/resend-activation-otp', validateRequest(forgotPasswordSchema), resendActivationOtp);
+router.post('/resend-forgot-password-otp', validateRequest(forgotPasswordSchema), resendForgotPasswordOtp);
 router.post('/login', validateRequest(loginSchema), loginUser);
 router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPassword);
+router.post('/verify-forgot-password-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);

@@ -8,6 +8,9 @@ import {
   loginUserService,
   forgotPasswordService,
   verifyOtpService,
+  verifyRegisterOtpService,
+  resendForgotPasswordOtpService,
+  resendActivationOtpService,
   resetPasswordService,
   getMeService,
   refreshTokenService,
@@ -21,7 +24,43 @@ export const registerUser = catchAsync(async (req: Request, res: Response): Prom
   const result = await registerUserService(req.body, req.files as any);
   sendResponse(res, {
     statusCode: 201,
-    message: 'User registered successfully',
+    message: result.message,
+    data: result,
+  });
+});
+
+// @desc    Verify registration / account activation OTP - Activates account & returns access/refresh tokens
+// @route   POST /api/auth/verify-register-otp (or /api/auth/verify-account)
+// @access  Public
+export const verifyRegisterOtp = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await verifyRegisterOtpService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Account verified & activated successfully',
+    data: result,
+  });
+});
+
+// @desc    Resend Forgot Password OTP
+// @route   POST /api/auth/resend-forgot-password-otp
+// @access  Public
+export const resendForgotPasswordOtp = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await resendForgotPasswordOtpService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});
+
+// @desc    Resend Account Activation OTP
+// @route   POST /api/auth/resend-activation-otp
+// @access  Public
+export const resendActivationOtp = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await resendActivationOtpService(req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
     data: result,
   });
 });
@@ -51,7 +90,7 @@ export const forgotPassword = catchAsync(async (req: Request, res: Response): Pr
 });
 
 // @desc    Verify OTP code - Generates password reset token
-// @route   POST /api/auth/verify-otp
+// @route   POST /api/auth/verify-forgot-password-otp
 // @access  Public
 export const verifyOtp = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const result = await verifyOtpService(req.body);
