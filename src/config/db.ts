@@ -1,12 +1,26 @@
 import mongoose from 'mongoose';
 import config from './config.js';
 
-export const connectDB = async (): Promise<void> => {
-  try {
-    const conn = await mongoose.connect(config.mongoUri);
-    console.log(`[database]: MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error(`[database]: Connection Error: ${(error as Error).message}`);
-    process.exit(1);
+let cachedPromise: Promise<typeof mongoose> | null = null;
+
+export const connectDB = async (): Promise<typeof mongoose> => {
+  if (mongoose.connection.readyState >= 1) {
+    return mongoose;
   }
+
+  if (!cachedPromise) {
+    cachedPromise = mongoose
+      .connect(config.mongoUri)
+      .then((m) => {
+        console.log(`[database]: MongoDB Connected: ${m.connection.host}`);
+        return m;
+      })
+      .catch((error) => {
+        cachedPromise = null;
+        console.error(`[database]: Connection Error: ${(error as Error).message}`);
+        throw error;
+      });
+  }
+
+  return cachedPromise;
 };

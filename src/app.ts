@@ -1,5 +1,6 @@
-import express, { type Request, type Response } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
+import { connectDB } from './config/db.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import authRoutes from './modules/auth/auth.route.js';
 import categoryRoutes from './modules/category/category.route.js';
@@ -10,6 +11,16 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// Ensure Database Connection for every request (Serverless & Traditional Server support)
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Setup Swagger UI Documentation
 setupSwagger(app);
