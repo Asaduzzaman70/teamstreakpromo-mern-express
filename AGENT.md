@@ -90,9 +90,26 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 
 ### 7. Shared Cross-Cutting Modules
 - `src/middlewares/`: Shared global Express middlewares (`authMiddleware.ts`, `errorHandler.ts`).
-- `src/utils/`: Shared utilities (`AppError.ts`, `catchAsync.ts`, `sendResponse.ts`).
+- `src/utils/`: Shared utilities (`AppError.ts`, `catchAsync.ts`, `sendResponse.ts`, `s3.ts`).
 - `src/config/`: Application configuration & DB connection helper.
 - `src/docs/`: OpenAPI / Swagger UI setup.
+
+---
+
+## Domain Rules & Guidelines
+
+### Event & Subcategory Management
+- **Subcategory Requirement**: When creating or updating an event, hosts must provide `subCategoryId` in the request payload (not a top-level category).
+- **Subcategory Validation**: The service layer validates that the provided ID exists in the `Category` collection and is a valid subcategory (i.e. `parentCategory` is not null). If a main category ID is provided, an operational error (`400 Bad Request`) is thrown.
+- **Database Schema**: The database model (`Event`) stores the subcategory reference in the `categoryId` field. No extra `subCategoryId` field is added to the MongoDB database schema.
+- **S3 File Cleanup**: When updating an event, any previously uploaded S3 image URLs (event main images, artist images, reward images) that are replaced or removed are automatically deleted from AWS S3 via `deleteFromS3`. Similarly, deleting an event cleans up all associated images from S3.
+
+### Event Listing & Querying Rules
+- **Active Events Only**: `GET /api/events` only returns active events whose `endDate` is strictly greater than the current server date and time (`endDate > new Date()`). Past/expired events are automatically excluded.
+- **50km Radius Location Filtering**: Clients can supply `latitude` (or `lat`) and `longitude` (or `lng`/`lan`/`lon`) query parameters. When provided, the API filters results to events located within a 50 km spherical radius of those coordinates using Haversine distance calculation.
+- **Per-User Seeded Random Ordering**: Events are presented in a pseudo-random order per user/session derived from `seed` or `userId`. Using a deterministic hash score (`getSeedHash`), the random ordering remains consistent across paginated requests (`page=1`, `page=2`, etc.) without dropping or duplicating events across pages.
+
+
 
 
 schema

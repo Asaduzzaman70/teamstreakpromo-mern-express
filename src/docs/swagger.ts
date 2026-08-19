@@ -872,9 +872,9 @@ const options: swaggerJsdoc.Options = {
               'multipart/form-data': {
                 schema: {
                   type: 'object',
-                  required: ['categoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
+                  required: ['subCategoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
                   properties: {
-                    categoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
+                    subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Subcategory ObjectId (must have parentCategory)' },
                     title: { type: 'string', example: 'Summer Music Festival 2026' },
                     latitude: { type: 'number', example: 40.7128 },
                     longitude: { type: 'number', example: -74.006 },
@@ -895,9 +895,10 @@ const options: swaggerJsdoc.Options = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['categoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
+                  required: ['subCategoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
                   properties: {
-                    categoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
+                    subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Subcategory ObjectId (must have parentCategory)' },
+
                     title: { type: 'string', example: 'Summer Music Festival 2026' },
                     latitude: { type: 'number', example: 40.7128 },
                     longitude: { type: 'number', example: -74.006 },
@@ -953,9 +954,10 @@ const options: swaggerJsdoc.Options = {
           },
         },
         get: {
-          summary: 'Get all events (Event view with pagination max 20 per page)',
+          summary: 'Get all active events (For all users - USER, HOST, BUSINESS, ADMIN)',
           tags: ['Event'],
           security: [{ bearerAuth: [] }],
+
           parameters: [
             {
               name: 'page',
@@ -976,6 +978,12 @@ const options: swaggerJsdoc.Options = {
               schema: { type: 'string' },
             },
             {
+              name: 'subCategoryId',
+              in: 'query',
+              description: 'Filter events by subcategory ID',
+              schema: { type: 'string' },
+            },
+            {
               name: 'categoryId',
               in: 'query',
               description: 'Filter events by category ID',
@@ -987,14 +995,32 @@ const options: swaggerJsdoc.Options = {
               description: 'Filter events by host user ID',
               schema: { type: 'string' },
             },
+            {
+              name: 'latitude',
+              in: 'query',
+              description: 'User latitude for 50km radius location filtering (supports lat)',
+              schema: { type: 'number' },
+            },
+            {
+              name: 'longitude',
+              in: 'query',
+              description: 'User longitude for 50km radius location filtering (supports lng/lan)',
+              schema: { type: 'number' },
+            },
+            {
+              name: 'seed',
+              in: 'query',
+              description: 'Optional random seed for per-user consistent random pagination',
+              schema: { type: 'string' },
+            },
           ],
           responses: {
             '200': { description: 'Events retrieved successfully' },
             '401': { description: 'Unauthorized' },
-            '403': { description: 'Forbidden - Requires ADMIN role' },
           },
         },
       },
+
       '/api/events/{id}': {
         get: {
           summary: 'Get single event details by ID',
@@ -1010,6 +1036,74 @@ const options: swaggerJsdoc.Options = {
           ],
           responses: {
             '200': { description: 'Event details retrieved successfully' },
+            '404': { description: 'Event not found' },
+          },
+        },
+        patch: {
+          summary: 'Update an event by ID (Host / Admin)',
+          tags: ['Event'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'id',
+              in: 'path',
+              required: true,
+              schema: { type: 'string' },
+              description: 'Event ID',
+            },
+          ],
+          requestBody: {
+            required: false,
+            content: {
+              'multipart/form-data': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    categoryId: { type: 'string' },
+                    title: { type: 'string' },
+                    latitude: { type: 'number' },
+                    longitude: { type: 'number' },
+                    ageRestriction: { type: 'integer' },
+                    placeName: { type: 'string' },
+                    description: { type: 'string' },
+                    startDate: { type: 'string', format: 'date-time' },
+                    endDate: { type: 'string', format: 'date-time' },
+                    ticketPrice: { type: 'number' },
+                    images: { type: 'array', items: { type: 'string', format: 'binary' } },
+                    artistImages: { type: 'array', items: { type: 'string', format: 'binary' } },
+                    rewardImages: { type: 'array', items: { type: 'string', format: 'binary' } },
+                    artistInfo: { type: 'string' },
+                    rewards: { type: 'string' },
+                  },
+                },
+              },
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    categoryId: { type: 'string' },
+                    title: { type: 'string' },
+                    latitude: { type: 'number' },
+                    longitude: { type: 'number' },
+                    ageRestriction: { type: 'integer' },
+                    placeName: { type: 'string' },
+                    description: { type: 'string' },
+                    startDate: { type: 'string', format: 'date-time' },
+                    endDate: { type: 'string', format: 'date-time' },
+                    ticketPrice: { type: 'number' },
+                    images: { type: 'array', items: { type: 'string' } },
+                    artistInfo: { type: 'array', items: { type: 'object' } },
+                    rewards: { type: 'array', items: { type: 'object' } },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': { description: 'Event updated successfully' },
+            '400': { description: 'Validation error' },
+            '401': { description: 'Not authorized' },
+            '403': { description: 'Forbidden: Not authorized to edit this event' },
             '404': { description: 'Event not found' },
           },
         },
@@ -1034,6 +1128,7 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
+
     },
   },
   apis: [],

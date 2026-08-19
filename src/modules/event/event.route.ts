@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { createEvent, getAllEventsAdmin, getEventById, deleteEvent } from './event.controller.js';
-import { createEventSchema } from './event.validation.js';
+import { createEvent, updateEvent, getAllEvents, getEventById, deleteEvent } from './event.controller.js';
+import { createEventSchema, updateEventSchema } from './event.validation.js';
 import { authorizeRoles, protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
 import { uploadFields } from '../../middlewares/multer.middleware.js';
@@ -21,11 +21,25 @@ router
     validateRequest(createEventSchema),
     createEvent
   )
-  .get(protect, getAllEventsAdmin);
+  .get(protect, getAllEvents);
+
 
 router
   .route('/:id')
   .get(protect, getEventById)
+  .patch(
+    protect,
+    eventUploadFields,
+    validateRequest(updateEventSchema),
+    updateEvent
+  )
+  .put(
+    protect,
+    eventUploadFields,
+    validateRequest(updateEventSchema),
+    updateEvent
+  )
   .delete(protect, deleteEvent);
 
 export default router;
+

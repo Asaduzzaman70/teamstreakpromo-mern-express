@@ -1,6 +1,6 @@
 import type { Document, Types } from 'mongoose';
 import type { z } from 'zod';
-import type { createEventSchema } from './event.validation.js';
+import type { createEventSchema, updateEventSchema } from './event.validation.js';
 
 export interface IArtistInfo {
   name: string;
@@ -38,11 +38,22 @@ export interface IEvent extends Document {
 }
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+export type UpdateEventInput = z.infer<typeof updateEventSchema>;
 
 export interface EventQuery {
   page?: number | string;
   limit?: number | string;
   search?: string;
   categoryId?: string;
+  subCategoryId?: string;
   hostId?: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  lat?: number | string;
+  lng?: number | string;
+  lan?: number | string;
+  lon?: number | string;
+  seed?: string;
+  userId?: string;
 }
+

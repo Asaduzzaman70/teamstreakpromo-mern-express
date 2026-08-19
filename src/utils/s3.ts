@@ -1,4 +1,4 @@
-import { PutObjectCommand, type ObjectCannedACL } from '@aws-sdk/client-s3';
+import { PutObjectCommand, DeleteObjectCommand, type ObjectCannedACL } from '@aws-sdk/client-s3';
 import { s3Client } from '../config/s3.config.js';
 import config from '../config/config.js';
 import { AppError } from './AppError.js';
@@ -56,3 +56,32 @@ export const uploadBufferToS3 = async (
     throw new AppError(`Failed to upload image to S3: ${error.message || error}`, 500);
   }
 };
+
+export const deleteFromS3 = async (fileUrl: string): Promise<void> => {
+  if (!fileUrl) return;
+  try {
+    let key = fileUrl;
+    if (fileUrl.includes('.amazonaws.com/')) {
+      const parts = fileUrl.split('.amazonaws.com/');
+      if (parts[1]) {
+        key = parts[1];
+      }
+    } else if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+      const parsed = new URL(fileUrl);
+      key = parsed.pathname.substring(1);
+    }
+
+    if (!key) return;
+
+    const command = new DeleteObjectCommand({
+      Bucket: config.awsS3BucketName,
+      Key: key,
+    });
+
+    await s3Client.send(command);
+  } catch (error: any) {
+    console.error(`Failed to delete file from S3 (${fileUrl}):`, error.message || error);
+  }
+};
+
+
