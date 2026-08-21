@@ -567,6 +567,54 @@ const options: swaggerJsdoc.Options = {
           },
         },
       },
+      '/api/auth/change-password': {
+        post: {
+          summary: 'Change password for authenticated user (requires current password)',
+          tags: ['Authentication'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['oldPassword', 'newPassword', 'confirmPassword'],
+                  properties: {
+                    oldPassword: { type: 'string', example: 'OldPassword123!' },
+                    newPassword: { type: 'string', example: 'NewPassword123!' },
+                    confirmPassword: { type: 'string', example: 'NewPassword123!' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': {
+              description: 'Password changed successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      statusCode: { type: 'number', example: 200 },
+                      message: { type: 'string', example: 'Password changed successfully' },
+                      data: {
+                        type: 'object',
+                        properties: {
+                          message: { type: 'string', example: 'Password changed successfully' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            '400': { description: 'Incorrect current password, password mismatch, or validation error' },
+            '401': { description: 'Unauthorized' },
+          },
+        },
+      },
       '/api/auth/logout': {
         post: {
           summary: 'Logout user & invalidate refresh token',
@@ -640,6 +688,7 @@ const options: swaggerJsdoc.Options = {
                           _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
                           name: { type: 'string', example: 'John Doe' },
                           email: { type: 'string', example: 'john@example.com' },
+                          phoneNumber: { type: 'string', example: '+1234567890' },
                           role: { type: 'string', example: 'USER' },
                           totalPoints: { type: 'integer', example: 0 },
                           walletBalance: { type: 'number', example: 0.0 },
@@ -682,6 +731,64 @@ const options: swaggerJsdoc.Options = {
                 },
               },
             },
+          },
+        },
+        patch: {
+          summary: 'Update currently authenticated user profile (name, email, phoneNumber, businessName, businessDescription, location)',
+          tags: ['Authentication'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', example: 'John Doe Updated' },
+                    email: { type: 'string', example: 'johnnew@example.com' },
+                    phoneNumber: { type: 'string', example: '+1234567890' },
+                    businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
+                    businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
+                    location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': { description: 'Profile updated successfully' },
+            '400': { description: 'Validation error, email already in use, or unauthorized field for user role' },
+            '401': { description: 'Unauthorized' },
+          },
+        },
+      },
+      '/api/auth/profile': {
+        patch: {
+          summary: 'Update user profile (name, email, phoneNumber, businessName, businessDescription, location)',
+          tags: ['Authentication'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', example: 'John Doe Updated' },
+                    email: { type: 'string', example: 'johnnew@example.com' },
+                    phoneNumber: { type: 'string', example: '+1234567890' },
+                    businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
+                    businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
+                    location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            '200': { description: 'Profile updated successfully' },
+            '400': { description: 'Validation error, email already in use, or unauthorized field for user role' },
+            '401': { description: 'Unauthorized' },
           },
         },
       },
@@ -1017,6 +1124,63 @@ const options: swaggerJsdoc.Options = {
           responses: {
             '200': { description: 'Events retrieved successfully' },
             '401': { description: 'Unauthorized' },
+          },
+        },
+      },
+
+      '/api/events/admin': {
+        get: {
+          summary: 'Get paginated events for Admin (Filter by hostId, search by title/host, filter by category)',
+          tags: ['Event'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              name: 'page',
+              in: 'query',
+              description: 'Page number for pagination (default: 1)',
+              schema: { type: 'integer', default: 1 },
+            },
+            {
+              name: 'limit',
+              in: 'query',
+              description: 'Number of items per page (default: 10)',
+              schema: { type: 'integer', default: 10 },
+            },
+            {
+              name: 'search',
+              in: 'query',
+              description: 'Search events by title, description, placeName, or host name/email',
+              schema: { type: 'string' },
+            },
+            {
+              name: 'title',
+              in: 'query',
+              description: 'Filter/search by title specifically',
+              schema: { type: 'string' },
+            },
+            {
+              name: 'hostId',
+              in: 'query',
+              description: 'Filter events hostId wise',
+              schema: { type: 'string' },
+            },
+            {
+              name: 'categoryId',
+              in: 'query',
+              description: 'Filter events categorywise (main category or subcategory ID)',
+              schema: { type: 'string' },
+            },
+            {
+              name: 'subCategoryId',
+              in: 'query',
+              description: 'Filter events subcategorywise',
+              schema: { type: 'string' },
+            },
+          ],
+          responses: {
+            '200': { description: 'Admin events retrieved successfully' },
+            '401': { description: 'Not authorized' },
+            '403': { description: 'Forbidden: Requires ADMIN role' },
           },
         },
       },

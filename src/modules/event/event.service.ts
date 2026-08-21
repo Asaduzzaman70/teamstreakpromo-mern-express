@@ -1,5 +1,6 @@
 import { Event } from './event.model.js';
 import { Category } from '../category/category.model.js';
+import { User } from '../auth/auth.model.js';
 import { AppError } from '../../utils/AppError.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
@@ -449,4 +450,78 @@ export const deleteEventService = async (
 
   return event;
 };
+
+export const getAdminEventsService = async (
+  query: EventQuery
+): Promise<{ meta: IMeta; result: IEvent[] }> => {
+  const filter: Record<string, any> = {};
+
+  if (query.hostId) {
+    filter.hostId = query.hostId;
+  }
+
+  const categoryId = query.subCategoryId || query.categoryId;
+  if (categoryId) {
+    const categoryDoc = await Category.findById(categoryId);
+    if (categoryDoc && !categoryDoc.parentCategory) {
+      const subCategories = await Category.find({ parentCategory: categoryId }).select('_id');
+      const subCategoryIds = subCategories.map((sub) => sub._id);
+      filter.categoryId = { $in: [categoryId, ...subCategoryIds] };
+    } else {
+      filter.categoryId = categoryId;
+    }
+  }
+
+  const searchQuery = query.search || query.title;
+  if (searchQuery) {
+    const searchRegex = new RegExp(searchQuery.trim(), 'i');
+
+    const matchingHosts = await User.find({
+      $or: [
+        { name: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+      ],
+    }).select('_id');
+    const hostIds = matchingHosts.map((h) => h._id);
+
+    filter.$or = [
+      { title: { $regex: searchRegex } },
+      { description: { $regex: searchRegex } },
+      { placeName: { $regex: searchRegex } },
+      ...(hostIds.length > 0 ? [{ hostId: { $in: hostIds } }] : []),
+    ];
+  }
+
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.max(1, Number(query.limit) || 10);
+  const skip = (page - 1) * limit;
+
+  const total = await Event.countDocuments(filter);
+  const totalPage = Math.ceil(total / limit);
+
+  const paginatedEvents = await Event.find(filter)
+    .populate('hostId', 'name email role')
+    .populate({
+      path: 'categoryId',
+      select: 'name description parentCategory',
+      populate: {
+        path: 'parentCategory',
+        select: 'name description',
+      },
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage,
+    },
+    result: paginatedEvents,
+  };
+};
+
 

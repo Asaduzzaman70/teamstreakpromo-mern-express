@@ -7,6 +7,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  phoneNumber?: string;
   role: UserRole;
   totalPoints: number;
   walletBalance: number;
@@ -37,6 +38,11 @@ const UserSchema = new Schema<IUser>(
     password: {
       type: String,
       required: [true, 'Password is required'],
+    },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: '',
     },
     role: {
       type: String,

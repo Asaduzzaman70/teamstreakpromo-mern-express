@@ -9,6 +9,8 @@ import {
   verifyOtp,
   resetPassword,
   getMe,
+  updateProfile,
+  changePassword,
   refreshToken,
   logoutUser,
 } from './auth.controller.js';
@@ -19,6 +21,8 @@ import {
   verifyOtpSchema,
   resetPasswordSchema,
   refreshTokenSchema,
+  updateProfileSchema,
+  changePasswordSchema,
 } from './auth.validation.js';
 import { protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
@@ -48,8 +52,12 @@ router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPas
 router.post('/verify-forgot-password-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);
 router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
+router.post('/change-password', protect, validateRequest(changePasswordSchema), changePassword);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);
 router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
+router.patch('/me', protect, validateRequest(updateProfileSchema), updateProfile);
+router.patch('/profile', protect, validateRequest(updateProfileSchema), updateProfile);
+router.put('/profile', protect, validateRequest(updateProfileSchema), updateProfile);
 
 export default router;

@@ -13,6 +13,8 @@ import {
   resendActivationOtpService,
   resetPasswordService,
   getMeService,
+  updateProfileService,
+  changePasswordService,
   refreshTokenService,
   logoutUserService,
 } from './auth.service.js';
@@ -155,4 +157,38 @@ export const logoutUser = catchAsync(async (req: AuthenticatedRequest, res: Resp
     data: result,
   });
 });
+
+// @desc    Update logged in user profile (name, email, phone number)
+// @route   PATCH /api/auth/profile or PATCH /api/auth/me
+// @access  Private
+export const updateProfile = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
+
+  const updatedProfile = await updateProfileService(req.user.id, req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Profile updated successfully',
+    data: updatedProfile,
+  });
+});
+
+// @desc    Change logged in user password
+// @route   POST /api/auth/change-password
+// @access  Private
+export const changePassword = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
+
+  const result = await changePasswordService(req.user.id, req.body);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});
+
+
 

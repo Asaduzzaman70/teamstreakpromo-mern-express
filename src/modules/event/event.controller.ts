@@ -7,6 +7,7 @@ import {
   createEventService,
   updateEventService,
   getAllEventsService,
+  getAdminEventsService,
   getEventByIdService,
   deleteEventService,
 } from './event.service.js';
@@ -65,6 +66,21 @@ export const getAllEvents = catchAsync(async (req: Request, res: Response): Prom
     data: result.result,
   });
 });
+
+// @desc    Get paginated events for Admin (Filter by hostId, search by title/host, filter by category)
+// @route   GET /api/events/admin
+// @access  Private (ADMIN)
+export const getAdminEvents = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const result = await getAdminEventsService(req.query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Admin events retrieved successfully',
+    meta: result.meta,
+    data: result.result,
+  });
+});
+
 
 
 

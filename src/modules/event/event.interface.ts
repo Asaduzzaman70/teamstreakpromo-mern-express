@@ -44,6 +44,7 @@ export interface EventQuery {
   page?: number | string;
   limit?: number | string;
   search?: string;
+  title?: string;
   categoryId?: string;
   subCategoryId?: string;
   hostId?: string;
@@ -56,4 +57,5 @@ export interface EventQuery {
   seed?: string;
   userId?: string;
 }
+
 

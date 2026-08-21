@@ -14,6 +14,8 @@ import type {
   VerifyOtpInput,
   ResetPasswordInput,
   RefreshTokenInput,
+  UpdateProfileInput,
+  ChangePasswordInput,
   RegisterResponse,
   AuthResponse,
   RefreshTokenResponse,
@@ -22,6 +24,7 @@ import type {
   ResetPasswordResponse,
   UserProfileResponse,
   LogoutResponse,
+  ChangePasswordResponse,
 } from './auth.interface.js';
 
 const generateAccessToken = (id: string, role: string): string => {
@@ -456,4 +459,102 @@ export const logoutUserService = async (
     message: 'User logged out successfully',
   };
 };
+
+export const updateProfileService = async (
+  userId: string,
+  data: UpdateProfileInput
+): Promise<UserProfileResponse> => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const { name, email, phoneNumber, businessName, businessDescription, location } = data;
+
+  const hasBusinessFields =
+    businessName !== undefined || businessDescription !== undefined || location !== undefined;
+
+  if (user.role !== 'HOST' && user.role !== 'BUSINESS' && hasBusinessFields) {
+    throw new AppError('Regular users cannot update business profile fields', 400);
+  }
+
+  if (email && email.toLowerCase().trim() !== user.email) {
+    const existingUser = await User.findOne({
+      email: email.toLowerCase().trim(),
+      _id: { $ne: userId },
+    });
+    if (existingUser) {
+      throw new AppError('Email is already in use by another account', 400);
+    }
+    user.email = email.toLowerCase().trim();
+  }
+
+  if (name !== undefined) {
+    user.name = name.trim();
+  }
+
+  if (phoneNumber !== undefined) {
+    user.phoneNumber = phoneNumber.trim();
+  }
+
+  await user.save();
+
+  if ((user.role === 'HOST' || user.role === 'BUSINESS') && hasBusinessFields) {
+    let businessProfile = await BusinessProfile.findOne({ userId: user._id });
+
+    if (businessProfile) {
+      if (businessName !== undefined) businessProfile.businessName = businessName.trim();
+      if (businessDescription !== undefined) businessProfile.businessDescription = businessDescription.trim();
+      if (location !== undefined) businessProfile.location = location.trim();
+      await businessProfile.save();
+    } else {
+      await BusinessProfile.create({
+        userId: user._id as any,
+        businessName: businessName?.trim() || '',
+        businessDescription: businessDescription?.trim() || '',
+        location: location?.trim() || '',
+        govtIdFrontImage: '',
+        govtIdBackImage: '',
+        businessLicenseFrontImage: '',
+        businessLicenseBackImage: '',
+        submittedAt: new Date(),
+        verificationStatus: 'PENDING',
+      });
+    }
+  }
+
+  return getMeService(userId);
+};
+
+export const changePasswordService = async (
+  userId: string,
+  data: ChangePasswordInput
+): Promise<ChangePasswordResponse> => {
+  const { oldPassword, currentPassword, newPassword } = data;
+  const existingPassword = oldPassword || currentPassword;
+
+  if (!existingPassword) {
+    throw new AppError('Old password is required', 400);
+  }
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const isMatch = await user.comparePassword(existingPassword);
+  if (!isMatch) {
+    throw new AppError('Incorrect current password', 400);
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  return {
+    message: 'Password changed successfully',
+  };
+};
+
+
+
 

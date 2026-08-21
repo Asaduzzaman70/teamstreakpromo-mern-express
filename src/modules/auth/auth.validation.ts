@@ -112,3 +112,34 @@ export const refreshTokenSchema = z.object({
     .min(1, 'Refresh token is required'),
 });
 
+export const updateProfileSchema = z.object({
+  name: z.string().trim().min(1, 'Name cannot be empty').optional(),
+  email: z.string().trim().email('Invalid email address').optional(),
+  phoneNumber: z.string().trim().optional(),
+  businessName: z.string().trim().min(1, 'Business name cannot be empty').optional(),
+  businessDescription: z.string().trim().min(1, 'Business description cannot be empty').optional(),
+  location: z.string().trim().min(1, 'Location cannot be empty').optional(),
+});
+
+export const changePasswordSchema = z
+  .object({
+    oldPassword: z.string().optional(),
+    currentPassword: z.string().optional(),
+    newPassword: z
+      .string({ message: 'New password is required' })
+      .min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string({ message: 'Confirm password is required' }),
+  })
+  .refine((data) => !!(data.oldPassword || data.currentPassword), {
+    message: 'Old password is required',
+    path: ['oldPassword'],
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+
+
+
+
