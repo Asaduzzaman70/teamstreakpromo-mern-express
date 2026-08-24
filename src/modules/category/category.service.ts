@@ -52,7 +52,10 @@ export const getAllCategoriesService = async (
     }
   }
 
-  if (query.parentCategory) {
+  const getAllParentParam = query.getAllParentCategory ?? query.getallParentCategory;
+  if (getAllParentParam !== undefined && (getAllParentParam === true || getAllParentParam === 'true')) {
+    filter.parentCategory = null;
+  } else if (query.parentCategory) {
     if (query.parentCategory === 'null' || query.parentCategory === 'none') {
       filter.parentCategory = null;
     } else {

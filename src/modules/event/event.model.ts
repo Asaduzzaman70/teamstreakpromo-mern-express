@@ -74,6 +74,12 @@ const EventSchema = new Schema<IEvent>(
       required: [true, 'Ticket price is required'],
       default: 0,
     },
+    stock: {
+      type: Number,
+      required: [true, 'Stock is required'],
+      min: [0, 'Stock cannot be negative'],
+      default: 0,
+    },
     images: {
       type: [String],
       default: [],

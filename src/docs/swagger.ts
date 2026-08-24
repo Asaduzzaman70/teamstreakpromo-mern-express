@@ -854,6 +854,12 @@ const options: swaggerJsdoc.Options = {
               description: 'Filter by parent category ID',
               schema: { type: 'string' },
             },
+            {
+              name: 'getAllParentCategory',
+              in: 'query',
+              description: 'If true, returns only main parent categories (where parentCategory is null)',
+              schema: { type: 'boolean' },
+            },
           ],
           responses: {
             '200': {
@@ -991,6 +997,7 @@ const options: swaggerJsdoc.Options = {
                     startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
                     endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
                     ticketPrice: { type: 'number', example: 49.99 },
+                    stock: { type: 'integer', example: 100 },
                     images: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Event image files upload' },
                     artistImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Artist profile image files upload (mapped 1-to-1 with artistInfo index)' },
                     rewardImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Reward image files upload (mapped 1-to-1 with rewards index)' },
@@ -1015,6 +1022,7 @@ const options: swaggerJsdoc.Options = {
                     startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
                     endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
                     ticketPrice: { type: 'number', example: 49.99 },
+                    stock: { type: 'integer', example: 100 },
                     images: { type: 'array', items: { type: 'string' } },
                     artistInfo: {
                       type: 'array',
@@ -1233,6 +1241,7 @@ const options: swaggerJsdoc.Options = {
                     startDate: { type: 'string', format: 'date-time' },
                     endDate: { type: 'string', format: 'date-time' },
                     ticketPrice: { type: 'number' },
+                    stock: { type: 'integer' },
                     images: { type: 'array', items: { type: 'string', format: 'binary' } },
                     artistImages: { type: 'array', items: { type: 'string', format: 'binary' } },
                     rewardImages: { type: 'array', items: { type: 'string', format: 'binary' } },
@@ -1255,6 +1264,7 @@ const options: swaggerJsdoc.Options = {
                     startDate: { type: 'string', format: 'date-time' },
                     endDate: { type: 'string', format: 'date-time' },
                     ticketPrice: { type: 'number' },
+                    stock: { type: 'integer' },
                     images: { type: 'array', items: { type: 'string' } },
                     artistInfo: { type: 'array', items: { type: 'object' } },
                     rewards: { type: 'array', items: { type: 'object' } },

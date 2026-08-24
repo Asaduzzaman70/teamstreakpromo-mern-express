@@ -76,6 +76,12 @@ export const createEventSchema = z
         z.number({ message: 'Ticket price must be a number' }).min(0, 'Ticket price cannot be negative').optional()
       )
       .transform((val) => val ?? 0),
+    stock: z
+      .preprocess(
+        (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+        z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative').optional()
+      )
+      .transform((val) => val ?? 0),
     images: z
       .preprocess(
         (val) => {
@@ -179,6 +185,12 @@ export const updateEventSchema = z
       .preprocess(
         (val) => (typeof val === 'string' ? parseFloat(val) : val),
         z.number({ message: 'Ticket price must be a number' }).min(0, 'Ticket price cannot be negative')
+      )
+      .optional(),
+    stock: z
+      .preprocess(
+        (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+        z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative')
       )
       .optional(),
     images: z

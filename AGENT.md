@@ -231,6 +231,7 @@ direction TB
         +date startDate
         +date endDate
         +double ticketPrice
+        +int stock
         +array images
         +array artistInfo
     }

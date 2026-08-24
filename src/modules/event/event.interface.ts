@@ -30,6 +30,7 @@ export interface IEvent extends Document {
   startDate: Date;
   endDate: Date;
   ticketPrice: number;
+  stock: number;
   images: string[];
   artistInfo: IArtistInfo[];
   rewards: IReward[];

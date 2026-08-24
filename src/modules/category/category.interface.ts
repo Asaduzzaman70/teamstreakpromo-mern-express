@@ -11,6 +11,8 @@ export interface CategoryQuery {
   search?: string;
   isActive?: boolean | string;
   parentCategory?: string;
+  getAllParentCategory?: boolean | string;
+  getallParentCategory?: boolean | string;
   page?: number | string;
   limit?: number | string;
 }
