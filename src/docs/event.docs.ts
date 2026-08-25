@@ -1,0 +1,326 @@
+export const eventDocs = {
+  '/api/events': {
+    post: {
+      summary: 'Create a new event',
+      tags: ['Event'],
+      security: [{ bearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              required: ['subCategoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
+              properties: {
+                subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Subcategory ObjectId (must have parentCategory)' },
+                title: { type: 'string', example: 'Summer Music Festival 2026' },
+                latitude: { type: 'number', example: 40.7128 },
+                longitude: { type: 'number', example: -74.006 },
+                ageRestriction: { type: 'integer', example: 18 },
+                placeName: { type: 'string', example: 'Central Park Arena' },
+                description: { type: 'string', example: 'Annual summer live concert and music festival.' },
+                startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
+                endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
+                ticketPrice: { type: 'number', example: 49.99 },
+                stock: { type: 'integer', example: 100 },
+                images: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Event image files upload' },
+                artistImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Artist profile image files upload (mapped 1-to-1 with artistInfo index)' },
+                rewardImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Reward image files upload (mapped 1-to-1 with rewards index)' },
+                artistInfo: { type: 'string', example: '[{"name":"DJ Alex","role":"Headliner","socialMediaLinks":{"instagram":"https://instagram.com/djalex","spotify":"https://spotify.com/artist/123"}}]' },
+                rewards: { type: 'string', example: '[{"title":"VIP Pass Badge","description":"Free VIP area access badge","pointsRequired":150,"stock":50}]' },
+              },
+            },
+          },
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['subCategoryId', 'title', 'latitude', 'longitude', 'placeName', 'description', 'startDate', 'endDate'],
+              properties: {
+                subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Subcategory ObjectId (must have parentCategory)' },
+                title: { type: 'string', example: 'Summer Music Festival 2026' },
+                latitude: { type: 'number', example: 40.7128 },
+                longitude: { type: 'number', example: -74.006 },
+                ageRestriction: { type: 'integer', example: 18 },
+                placeName: { type: 'string', example: 'Central Park Arena' },
+                description: { type: 'string', example: 'Annual summer live concert and music festival.' },
+                startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
+                endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
+                ticketPrice: { type: 'number', example: 49.99 },
+                stock: { type: 'integer', example: 100 },
+                images: { type: 'array', items: { type: 'string' } },
+                artistInfo: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      name: { type: 'string', example: 'DJ Alex' },
+                      role: { type: 'string', example: 'Headliner' },
+                      image: { type: 'string', example: 'https://example.com/artist.jpg' },
+                      socialMediaLinks: {
+                        type: 'object',
+                        additionalProperties: { type: 'string' },
+                        example: {
+                          instagram: 'https://instagram.com/djalex',
+                          spotify: 'https://spotify.com/artist/123',
+                        },
+                      },
+                    },
+                  },
+                },
+                rewards: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      title: { type: 'string', example: 'VIP Pass Badge' },
+                      description: { type: 'string', example: 'Free VIP area access badge' },
+                      pointsRequired: { type: 'integer', example: 150 },
+                      stock: { type: 'integer', example: 50 },
+                      image: { type: 'string', example: 'https://example.com/reward.jpg' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '201': { description: 'Event created successfully' },
+        '400': { description: 'Validation error or invalid input' },
+        '401': { description: 'Unauthorized' },
+        '404': { description: 'Category not found' },
+      },
+    },
+    get: {
+      summary: 'Get all active events (For all users - USER, HOST, BUSINESS, ADMIN)',
+      tags: ['Event'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'page',
+          in: 'query',
+          description: 'Page number for pagination (default: 1)',
+          schema: { type: 'integer', default: 1 },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          description: 'Number of items per page (default: 10, max: 20)',
+          schema: { type: 'integer', default: 10, maximum: 20 },
+        },
+        {
+          name: 'search',
+          in: 'query',
+          description: 'Search events by title, description, or placeName',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'subCategoryId',
+          in: 'query',
+          description: 'Filter events by subcategory ID',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'categoryId',
+          in: 'query',
+          description: 'Filter events by category ID',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'hostId',
+          in: 'query',
+          description: 'Filter events by host user ID',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'latitude',
+          in: 'query',
+          description: 'User latitude for 50km radius location filtering (supports lat)',
+          schema: { type: 'number' },
+        },
+        {
+          name: 'longitude',
+          in: 'query',
+          description: 'User longitude for 50km radius location filtering (supports lng/lan)',
+          schema: { type: 'number' },
+        },
+        {
+          name: 'seed',
+          in: 'query',
+          description: 'Optional random seed for per-user consistent random pagination',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': { description: 'Events retrieved successfully' },
+        '401': { description: 'Unauthorized' },
+      },
+    },
+  },
+  '/api/events/admin': {
+    get: {
+      summary: 'Get paginated events for Admin (Filter by hostId, search by title/host, filter by category)',
+      tags: ['Event'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'page',
+          in: 'query',
+          description: 'Page number for pagination (default: 1)',
+          schema: { type: 'integer', default: 1 },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          description: 'Number of items per page (default: 10)',
+          schema: { type: 'integer', default: 10 },
+        },
+        {
+          name: 'search',
+          in: 'query',
+          description: 'Search events by title, description, placeName, or host name/email',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'title',
+          in: 'query',
+          description: 'Filter/search by title specifically',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'hostId',
+          in: 'query',
+          description: 'Filter events hostId wise',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'categoryId',
+          in: 'query',
+          description: 'Filter events categorywise (main category or subcategory ID)',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'subCategoryId',
+          in: 'query',
+          description: 'Filter events subcategorywise',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': { description: 'Admin events retrieved successfully' },
+        '401': { description: 'Not authorized' },
+        '403': { description: 'Forbidden: Requires ADMIN role' },
+      },
+    },
+  },
+  '/api/events/{id}': {
+    get: {
+      summary: 'Get single event details by ID',
+      tags: ['Event'],
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Event ID',
+        },
+      ],
+      responses: {
+        '200': { description: 'Event details retrieved successfully' },
+        '404': { description: 'Event not found' },
+      },
+    },
+    patch: {
+      summary: 'Update an event by ID (Host / Admin)',
+      tags: ['Event'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Event ID',
+        },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              properties: {
+                categoryId: { type: 'string' },
+                title: { type: 'string' },
+                latitude: { type: 'number' },
+                longitude: { type: 'number' },
+                ageRestriction: { type: 'integer' },
+                placeName: { type: 'string' },
+                description: { type: 'string' },
+                startDate: { type: 'string', format: 'date-time' },
+                endDate: { type: 'string', format: 'date-time' },
+                ticketPrice: { type: 'number' },
+                stock: { type: 'integer' },
+                images: { type: 'array', items: { type: 'string', format: 'binary' } },
+                artistImages: { type: 'array', items: { type: 'string', format: 'binary' } },
+                rewardImages: { type: 'array', items: { type: 'string', format: 'binary' } },
+                artistInfo: { type: 'string' },
+                rewards: { type: 'string' },
+              },
+            },
+          },
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                categoryId: { type: 'string' },
+                title: { type: 'string' },
+                latitude: { type: 'number' },
+                longitude: { type: 'number' },
+                ageRestriction: { type: 'integer' },
+                placeName: { type: 'string' },
+                description: { type: 'string' },
+                startDate: { type: 'string', format: 'date-time' },
+                endDate: { type: 'string', format: 'date-time' },
+                ticketPrice: { type: 'number' },
+                stock: { type: 'integer' },
+                images: { type: 'array', items: { type: 'string' } },
+                artistInfo: { type: 'array', items: { type: 'object' } },
+                rewards: { type: 'array', items: { type: 'object' } },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': { description: 'Event updated successfully' },
+        '400': { description: 'Validation error' },
+        '401': { description: 'Not authorized' },
+        '403': { description: 'Forbidden: Not authorized to edit this event' },
+        '404': { description: 'Event not found' },
+      },
+    },
+    delete: {
+      summary: 'Delete an event by ID',
+      tags: ['Event'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Event ID',
+        },
+      ],
+      responses: {
+        '200': { description: 'Event deleted successfully' },
+        '401': { description: 'Not authorized' },
+        '403': { description: 'Forbidden: Not authorized to delete this event' },
+        '404': { description: 'Event not found' },
+      },
+    },
+  },
+};

@@ -22,10 +22,16 @@ teamstreakpromo-mern-express/
     │   ├── config.ts          # Centralized configuration object
     │   └── db.ts              # MongoDB database connection helper
     ├── docs/                  # API Documentation & OpenAPI Specifications
-    │   └── swagger.ts         # Swagger/OpenAPI 3.0 specification & setup middleware
+    │   ├── auth.docs.ts       # Swagger OpenAPI paths for Authentication API
+    │   ├── category.docs.ts   # Swagger OpenAPI paths for Category API
+    │   ├── employee.docs.ts   # Swagger OpenAPI paths for Employee API
+    │   ├── event.docs.ts      # Swagger OpenAPI paths for Event API
+    │   └── swagger.ts         # Main Swagger setup & specification entrypoint
     ├── middlewares/           # Express custom global middlewares
     │   ├── authMiddleware.ts  # JWT Authentication & Request protection middleware
-    │   └── errorHandler.ts    # Global error handling middleware
+    │   ├── errorHandler.ts    # Global error handling middleware
+    │   ├── multer.middleware.ts      # Multer file upload middleware & memory storage helpers
+    │   └── validation.middleware.ts  # Express request validation middleware (Zod body/query/params)
     ├── modules/               # Feature modules
     │   └── <module_name>/     # Feature module directory (e.g., auth, user, etc.)
     │       ├── <module_name>.controller.ts # Request & response handlers
@@ -37,6 +43,8 @@ teamstreakpromo-mern-express/
     └── utils/                 # Application utilities & helpers
         ├── AppError.ts        # Custom operational error class
         ├── catchAsync.ts      # Async error handler wrapper for Express route handlers
+        ├── s3.ts              # AWS S3 file upload & deletion helpers
+        ├── sendEmail.ts       # Email delivery helper (Nodemailer)
         └── sendResponse.ts    # Standardized API response formatter
 ```
 
@@ -56,6 +64,8 @@ Interactive Swagger UI documentation is available when running the application s
 | `POST` | `/api/auth/login` | Login user & get JWT token | No |
 | `POST` | `/api/auth/forgot-password` | Request password reset instructions | No |
 | `GET` | `/api/auth/me` | Get logged-in user profile details | Yes (`Bearer <token>`) |
+| `POST` | `/api/employees` | Create a new employee for employer | Yes (`HOST`, `BUSINESS`) |
+| `GET` | `/api/employees` | Fetch all employees created by employer | Yes (`HOST`, `BUSINESS`) |
 
 ---
 
@@ -89,10 +99,14 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - Defines Express route mappings and attaches middleware (e.g., `protect`) and controller handlers.
 
 ### 7. Shared Cross-Cutting Modules
-- `src/middlewares/`: Shared global Express middlewares (`authMiddleware.ts`, `errorHandler.ts`).
-- `src/utils/`: Shared utilities (`AppError.ts`, `catchAsync.ts`, `sendResponse.ts`, `s3.ts`).
+- `src/middlewares/`: Shared global & route Express middlewares:
+  - `authMiddleware.ts`: JWT token authentication (`protect`) and role-based access control (`authorizeRoles`).
+  - `errorHandler.ts`: Global error handling middleware formatting operational and system error responses.
+  - `multer.middleware.ts`: Multer image file upload middleware using memory buffer storage, 5MB limit, and filter helpers (`uploadSingle`, `uploadFields`, `uploadArray`, `uploadAny`).
+  - `validation.middleware.ts`: Request validation middleware (`validateRequest`) that validates `body`, `query`, and `params` payloads using Zod schemas.
+- `src/utils/`: Shared utilities (`AppError.ts`, `catchAsync.ts`, `sendResponse.ts`, `s3.ts`, `sendEmail.ts`).
 - `src/config/`: Application configuration & DB connection helper.
-- `src/docs/`: OpenAPI / Swagger UI setup.
+- `src/docs/`: OpenAPI / Swagger UI setup and modular section docs (`auth.docs.ts`, `category.docs.ts`, `employee.docs.ts`, `event.docs.ts`, `swagger.ts`).
 
 ---
 
@@ -109,10 +123,6 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **50km Radius Location Filtering**: Clients can supply `latitude` (or `lat`) and `longitude` (or `lng`/`lan`/`lon`) query parameters. When provided, the API filters results to events located within a 50 km spherical radius of those coordinates using Haversine distance calculation.
 - **Per-User Seeded Random Ordering**: Events are presented in a pseudo-random order per user/session derived from `seed` or `userId`. Using a deterministic hash score (`getSeedHash`), the random ordering remains consistent across paginated requests (`page=1`, `page=2`, etc.) without dropping or duplicating events across pages.
 
-
-
-
-schema
 
 ---
 config:
