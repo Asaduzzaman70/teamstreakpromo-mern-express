@@ -236,6 +236,30 @@ export const eventDocs = {
     },
     patch: {
       summary: 'Update an event by ID (Host / Admin)',
+      description: `Update an existing event by ID (supports multipart/form-data).
+
+### Frontend Image Update Instructions (Flutter / Mobile / Web):
+
+#### 1. Main Event Images (\`images\`)
+- **To keep existing images**: Send existing image URL string(s) in form-data text fields (e.g. \`images\`: \`"https://example.com/main1.jpg"\`).
+- **To add new image files**: Attach binary image file(s) to form-data field \`images\`.
+- **To delete an image**: Omit that image URL string from the form-data fields.
+
+#### 2. Artist Profile Images (\`artistInfo\` & \`artistImages\`)
+- **To keep existing artist image**: Keep \`image: "https://example.com/artist1.jpg"\` in the \`artistInfo\` JSON string item.
+- **To update artist image**: Attach binary image file to form-data field \`artistImages\` matching the artist index order.
+
+#### 3. Event Reward Images (\`rewards\` & \`rewardImages_0\`, \`rewardImages_1\`)
+- **To keep existing reward images**: Keep existing image URL string(s) in the reward's \`images\` JSON array: \`[{"title": "VIP Pass", "images": ["https://example.com/reward1.jpg"]}]\`.
+- **To add new reward image files**: Attach binary image file(s) to form-data field \`rewardImages_0\` (for Reward 0), \`rewardImages_1\` (for Reward 1), etc.
+
+#### Sample Form-Data Field Inputs:
+- **Text Field \`images\`**: \`"https://example.com/existing_main1.jpg"\`
+- **File Field \`images\`**: \`[Binary Image File for Main Event]\`
+- **Text Field \`artistInfo\`**: \`[{"name": "DJ Alex", "role": "Headliner", "image": "https://example.com/existing_artist1.jpg"}]\`
+- **File Field \`artistImages\`**: \`[Binary Profile Image File for Artist 0]\`
+- **Text Field \`rewards\`**: \`[{"title": "VIP Pass", "pointsRequired": 150, "stock": 50, "images": ["https://example.com/existing_reward1.jpg"]}]\`
+- **File Field \`rewardImages_0\`**: \`[Binary Image File for Reward 0]\``,
       tags: ['Event'],
       security: [{ bearerAuth: [] }],
       parameters: [
