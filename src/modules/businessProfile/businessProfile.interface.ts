@@ -14,8 +14,8 @@ export interface IBusinessProfile extends Document {
   location: string;
   govtIdFrontImage: string;
   govtIdBackImage: string;
-  businessLicenseFrontImage: string;
-  businessLicenseBackImage: string;
+  businessLicenseFrontImage?: string;
+  businessLicenseBackImage?: string;
   verificationStatus: VerificationStatus;
   submittedAt: Date;
   verifiedAt?: Date | null;

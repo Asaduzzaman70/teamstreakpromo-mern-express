@@ -79,8 +79,6 @@ export const registerUserService = async (
     const requiredImageFields = [
       { name: 'govtIdFrontImage', label: 'Govt ID front image' },
       { name: 'govtIdBackImage', label: 'Govt ID back image' },
-      { name: 'businessLicenseFrontImage', label: 'Business license front image' },
-      { name: 'businessLicenseBackImage', label: 'Business license back image' },
     ];
 
     for (const field of requiredImageFields) {
@@ -88,12 +86,36 @@ export const registerUserService = async (
       const existingUrl = finalBusinessProfile?.[field.name];
 
       if (fileObj) {
-        // Upload image buffer from RAM memory to AWS S3 inside service layer
         const s3Url = await uploadToS3(fileObj, 'business-documents');
         finalBusinessProfile[field.name] = s3Url;
       } else if (!existingUrl) {
         throw new AppError(`${field.label} is required`, 400);
       }
+    }
+
+    if (files?.['businessLicenseFrontImage']?.[0]) {
+      finalBusinessProfile.businessLicenseFrontImage = await uploadToS3(
+        files['businessLicenseFrontImage'][0],
+        'business-documents'
+      );
+    }
+    if (files?.['businessLicenseBackImage']?.[0]) {
+      finalBusinessProfile.businessLicenseBackImage = await uploadToS3(
+        files['businessLicenseBackImage'][0],
+        'business-documents'
+      );
+    }
+
+    const ein = (finalBusinessProfile.einNumber || data.einNumber || '').trim();
+    const hasEin = ein.length > 0;
+    const hasLicenseFront = !!(finalBusinessProfile.businessLicenseFrontImage || '').trim();
+    const hasLicenseBack = !!(finalBusinessProfile.businessLicenseBackImage || '').trim();
+
+    if (!hasEin && (!hasLicenseFront || !hasLicenseBack)) {
+      throw new AppError(
+        'Either einNumber or both businessLicenseFrontImage and businessLicenseBackImage must be provided',
+        400
+      );
     }
   }
 
@@ -114,12 +136,12 @@ export const registerUserService = async (
       userId: user._id as any,
       businessName: finalBusinessProfile.businessName,
       businessDescription: finalBusinessProfile.businessDescription,
-      einNumber: finalBusinessProfile.einNumber || '',
+      einNumber: finalBusinessProfile.einNumber || data.einNumber || '',
       location: finalBusinessProfile.location,
       govtIdFrontImage: finalBusinessProfile.govtIdFrontImage,
       govtIdBackImage: finalBusinessProfile.govtIdBackImage,
-      businessLicenseFrontImage: finalBusinessProfile.businessLicenseFrontImage,
-      businessLicenseBackImage: finalBusinessProfile.businessLicenseBackImage,
+      businessLicenseFrontImage: finalBusinessProfile.businessLicenseFrontImage || '',
+      businessLicenseBackImage: finalBusinessProfile.businessLicenseBackImage || '',
       submittedAt: new Date(),
       verificationStatus: 'PENDING',
     });

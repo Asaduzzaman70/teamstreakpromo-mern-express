@@ -41,12 +41,12 @@ const BusinessProfileSchema = new Schema<IBusinessProfile>(
     },
     businessLicenseFrontImage: {
       type: String,
-      required: [true, 'Business license front image is required'],
+      default: '',
       trim: true,
     },
     businessLicenseBackImage: {
       type: String,
-      required: [true, 'Business license back image is required'],
+      default: '',
       trim: true,
     },
     verificationStatus: {

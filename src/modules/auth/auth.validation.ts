@@ -53,8 +53,26 @@ export const registerSchema = z
       if (!hasNested && !hasFlat) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Business profile details (businessName, businessDescription, location) are required for HOST and BUSINESS roles',
+          message:
+            'Business profile details (businessName, businessDescription, location) are required for HOST and BUSINESS roles',
           path: ['businessProfile'],
+        });
+      }
+
+      const ein = (data.einNumber || data.businessProfile?.einNumber || '').trim();
+      const hasEin = ein.length > 0;
+      const licenseFront = (data.businessProfile?.businessLicenseFrontImage || '').trim();
+      const licenseBack = (data.businessProfile?.businessLicenseBackImage || '').trim();
+      const hasLicenseImages = licenseFront.length > 0 && licenseBack.length > 0;
+
+      // Note: when files are uploaded via multipart form-data, images will be validated in service layer
+      // If no ein is provided and businessProfile object is explicitly passed without images, validate it
+      if (hasNested && !hasEin && !hasLicenseImages) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'Either einNumber or both businessLicenseFrontImage and businessLicenseBackImage must be provided',
+          path: ['einNumber'],
         });
       }
     }
