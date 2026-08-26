@@ -1,21 +1,48 @@
 import { z } from 'zod';
 
+const parseJsonObject = (val: unknown): Record<string, string> => {
+  if (!val) return {};
+  if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (v !== undefined && v !== null) {
+        result[String(k)] = String(v);
+      }
+    }
+    return result;
+  }
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed) return {};
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+        return parseJsonObject(parsed);
+      }
+    } catch {
+      try {
+        const jsonified = trimmed
+          .replace(/(['"])?([a-zA-Z0-9_\-./:]+)(['"])?\s*:/g, '"$2":')
+          .replace(/:\s*'([^']*)'/g, ':"$1"');
+        const parsed = JSON.parse(jsonified);
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          return parseJsonObject(parsed);
+        }
+      } catch {
+        return {};
+      }
+    }
+  }
+  return {};
+};
+
 const artistInfoSchema = z.object({
   name: z.string({ message: 'Artist name is required' }).trim().min(1, 'Artist name is required'),
   role: z.string().trim().optional(),
   image: z.string().trim().optional(),
   socialMediaLinks: z
     .preprocess(
-      (val) => {
-        if (typeof val === 'string') {
-          try {
-            return JSON.parse(val);
-          } catch {
-            return val;
-          }
-        }
-        return val;
-      },
+      (val) => parseJsonObject(val),
       z.record(z.string(), z.string())
     )
     .optional()
@@ -33,7 +60,21 @@ const rewardSchema = z.object({
     (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
     z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative')
   ),
-  image: z.string().trim().optional(),
+  images: z
+    .preprocess(
+      (val) => {
+        if (typeof val === 'string') {
+          try {
+            return JSON.parse(val);
+          } catch {
+            return [val];
+          }
+        }
+        return val;
+      },
+      z.array(z.string()).optional()
+    )
+    .transform((val) => val ?? []),
 });
 
 export const createEventSchema = z

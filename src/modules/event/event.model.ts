@@ -6,7 +6,7 @@ const ArtistInfoSchema = new Schema(
     name: { type: String, required: true, trim: true },
     role: { type: String, trim: true },
     image: { type: String, trim: true },
-    socialMediaLinks: { type: Map, of: String, default: {} },
+    socialMediaLinks: { type: Schema.Types.Mixed, default: {} },
   },
   { _id: false }
 );
@@ -17,7 +17,10 @@ const RewardSchema = new Schema(
     description: { type: String, trim: true },
     pointsRequired: { type: Number, required: true, min: 0, default: 0 },
     stock: { type: Number, required: true, min: 0, default: 0 },
-    image: { type: String, required: [true, 'Reward picture is required'], trim: true },
+    images: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

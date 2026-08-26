@@ -116,7 +116,9 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **Subcategory Requirement**: When creating or updating an event, hosts must provide `subCategoryId` in the request payload (not a top-level category).
 - **Subcategory Validation**: The service layer validates that the provided ID exists in the `Category` collection and is a valid subcategory (i.e. `parentCategory` is not null). If a main category ID is provided, an operational error (`400 Bad Request`) is thrown.
 - **Database Schema**: The database model (`Event`) stores the subcategory reference in the `categoryId` field. No extra `subCategoryId` field is added to the MongoDB database schema.
-- **S3 File Cleanup**: When updating an event, any previously uploaded S3 image URLs (event main images, artist images, reward images) that are replaced or removed are automatically deleted from AWS S3 via `deleteFromS3`. Similarly, deleting an event cleans up all associated images from S3.
+- **Event Reward Multi-Image Support**: Each event reward supports uploading and storing multiple images (stored in `images: string[]` array in `RewardSchema`). Reward image files can be uploaded via `rewardImages` or index-specific field names (`rewardImages_0`, `rewardImages_1`, etc.).
+- **Artist Image File Upload Support**: Artists added dynamically can have profile image files uploaded via `artistImages` array or index-specific field names (`artistImage_0`, `artistImages_0`, `artistImage[0]`, etc.), which are uploaded to AWS S3 and saved in `artist.image`.
+- **S3 File Cleanup**: When updating an event, any previously uploaded S3 image URLs (event main images, artist images, reward images array) that are replaced or removed are automatically deleted from AWS S3 via `deleteFromS3`. Similarly, deleting an event cleans up all associated images from S3.
 
 ### Event Listing & Querying Rules
 - **Active Events Only**: `GET /api/events` only returns active events whose `endDate` is strictly greater than the current server date and time (`endDate > new Date()`). Past/expired events are automatically excluded.
@@ -265,7 +267,7 @@ direction TB
         +string description
         +int pointsRequired
         +int stock
-        +object image
+        +array images
         +claimStock()
     }
 

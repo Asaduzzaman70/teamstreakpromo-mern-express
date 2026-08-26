@@ -3,15 +3,11 @@ import { createEvent, updateEvent, getAllEvents, getAdminEvents, getEventById, d
 import { createEventSchema, updateEventSchema } from './event.validation.js';
 import { authorizeRoles, protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
-import { uploadFields } from '../../middlewares/multer.middleware.js';
+import { uploadFields, uploadAny } from '../../middlewares/multer.middleware.js';
 
 const router = Router();
 
-const eventUploadFields = uploadFields([
-  { name: 'images', maxCount: 10 },
-  { name: 'artistImages', maxCount: 10 },
-  { name: 'rewardImages', maxCount: 10 },
-]);
+const eventUploadFields = uploadAny();
 
 router
   .route('/')

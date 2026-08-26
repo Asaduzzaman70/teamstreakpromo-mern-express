@@ -6,6 +6,68 @@ import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateEventInput, UpdateEventInput, EventQuery, IEvent } from './event.interface.js';
 
+const getRewardFilesForIndex = (
+  rewardFiles: Express.Multer.File[],
+  index: number,
+  totalRewards: number
+): Express.Multer.File[] => {
+  if (!rewardFiles || rewardFiles.length === 0) return [];
+
+  const matchedIndexFiles = rewardFiles.filter((f) => {
+    const field = f.fieldname.toLowerCase();
+    const patterns = [
+      `rewardimages_${index}`,
+      `rewardimage_${index}`,
+      `rewardimages[${index}]`,
+      `rewardimage[${index}]`,
+      `reward_${index}_images`,
+      `reward_${index}_image`,
+      `rewardimages${index}`,
+      `rewardimage${index}`,
+      `rewardimages[${index}][]`,
+      `rewardimage[${index}][]`,
+      `reward_${index}`,
+      `reward${index}`,
+    ];
+    return patterns.includes(field);
+  });
+
+  if (matchedIndexFiles.length > 0) {
+    return matchedIndexFiles;
+  }
+
+  const genericFiles = rewardFiles.filter(
+    (f) =>
+      f.fieldname === 'rewardImages' ||
+      f.fieldname === 'rewardImage' ||
+      f.fieldname === 'rewardImages[]' ||
+      f.fieldname === 'rewardImage[]' ||
+      f.fieldname.startsWith('rewardImages') ||
+      f.fieldname.startsWith('rewardImage')
+  );
+
+  if (genericFiles.length === 0) return [];
+
+  if (totalRewards <= 1) {
+    return genericFiles;
+  }
+
+  const chunkSize = Math.max(1, Math.floor(genericFiles.length / totalRewards));
+  const start = index * chunkSize;
+  const isLast = index === totalRewards - 1;
+  const end = isLast ? genericFiles.length : start + chunkSize;
+
+  const sliced = genericFiles.slice(start, end);
+  if (sliced.length > 0) {
+    return sliced;
+  }
+
+  const fallbackFile = genericFiles[index % genericFiles.length];
+  return fallbackFile ? [fallbackFile] : [];
+};
+
+
+
 export const createEventService = async (
   hostId: string,
   data: CreateEventInput,
@@ -33,19 +95,25 @@ export const createEventService = async (
   let rewardImageFiles: Express.Multer.File[] = [];
 
   if (files) {
+    let allFiles: Express.Multer.File[] = [];
     if (Array.isArray(files)) {
-      eventImageFiles = files.filter((f) => f.fieldname === 'images');
-      artistImageFiles = files.filter(
-        (f) => f.fieldname === 'artistImages' || f.fieldname.startsWith('artistImage')
-      );
-      rewardImageFiles = files.filter(
-        (f) => f.fieldname === 'rewardImages' || f.fieldname.startsWith('rewardImage')
-      );
+      allFiles = files;
     } else {
-      eventImageFiles = files['images'] || [];
-      artistImageFiles = files['artistImages'] || [];
-      rewardImageFiles = files['rewardImages'] || [];
+      allFiles = Object.values(files).flat();
     }
+
+    eventImageFiles = allFiles.filter(
+      (f) => f.fieldname === 'images' || f.fieldname.startsWith('eventImage')
+    );
+    artistImageFiles = allFiles.filter(
+      (f) => f.fieldname === 'artistImages' || f.fieldname === 'artistImage'
+    );
+    rewardImageFiles = allFiles.filter(
+      (f) =>
+        f.fieldname === 'rewardImages' ||
+        f.fieldname.startsWith('rewardImage') ||
+        f.fieldname.includes('reward')
+    );
   }
 
   // 1. Process Event Images
@@ -57,7 +125,7 @@ export const createEventService = async (
     }
   }
 
-  // 2. Process Artist Images (upload artist image file to S3 per artist index)
+  // 2. Process Artist Images (upload 1 profile image file to S3 per artist index)
   const processedArtistInfo = await Promise.all(
     (data.artistInfo || []).map(async (artist, index) => {
       let imageUrl = artist.image || '';
@@ -71,22 +139,31 @@ export const createEventService = async (
         name: artist.name,
         ...(artist.role ? { role: artist.role } : {}),
         image: imageUrl,
-        socialMediaLinks: artist.socialMediaLinks || {},
+        socialMediaLinks:
+          typeof artist.socialMediaLinks === 'object' && artist.socialMediaLinks !== null
+            ? artist.socialMediaLinks
+            : {},
       };
     })
   );
 
-  // 3. Process Reward Images (upload reward image file to S3 per reward index)
+  // 3. Process Reward Images (upload multiple reward image files to S3 per reward)
+  const totalRewards = (data.rewards || []).length;
   const processedRewards = await Promise.all(
     (data.rewards || []).map(async (reward, index) => {
-      let imageUrl = reward.image || '';
+      const rewardImagesList: string[] = [];
 
-      const rewardFile = rewardImageFiles[index];
-      if (rewardFile) {
-        imageUrl = await uploadToS3(rewardFile, 'rewards');
+      if (Array.isArray(reward.images)) {
+        rewardImagesList.push(...reward.images.filter(Boolean));
       }
 
-      if (!imageUrl) {
+      const filesForReward = getRewardFilesForIndex(rewardImageFiles, index, totalRewards);
+      for (const file of filesForReward) {
+        const s3Url = await uploadToS3(file, 'rewards');
+        rewardImagesList.push(s3Url);
+      }
+
+      if (rewardImagesList.length === 0) {
         throw new AppError(`A picture is required for reward: "${reward.title}"`, 400);
       }
 
@@ -95,7 +172,7 @@ export const createEventService = async (
         ...(reward.description ? { description: reward.description } : {}),
         pointsRequired: reward.pointsRequired,
         stock: reward.stock,
-        image: imageUrl,
+        images: rewardImagesList,
       };
     })
   );
@@ -156,19 +233,25 @@ export const updateEventService = async (
   let rewardImageFiles: Express.Multer.File[] = [];
 
   if (files) {
+    let allFiles: Express.Multer.File[] = [];
     if (Array.isArray(files)) {
-      eventImageFiles = files.filter((f) => f.fieldname === 'images');
-      artistImageFiles = files.filter(
-        (f) => f.fieldname === 'artistImages' || f.fieldname.startsWith('artistImage')
-      );
-      rewardImageFiles = files.filter(
-        (f) => f.fieldname === 'rewardImages' || f.fieldname.startsWith('rewardImage')
-      );
+      allFiles = files;
     } else {
-      eventImageFiles = files['images'] || [];
-      artistImageFiles = files['artistImages'] || [];
-      rewardImageFiles = files['rewardImages'] || [];
+      allFiles = Object.values(files).flat();
     }
+
+    eventImageFiles = allFiles.filter(
+      (f) => f.fieldname === 'images' || f.fieldname.startsWith('eventImage')
+    );
+    artistImageFiles = allFiles.filter(
+      (f) => f.fieldname === 'artistImages' || f.fieldname === 'artistImage'
+    );
+    rewardImageFiles = allFiles.filter(
+      (f) =>
+        f.fieldname === 'rewardImages' ||
+        f.fieldname.startsWith('rewardImage') ||
+        f.fieldname.includes('reward')
+    );
   }
 
   // Collect all old image URLs from oldEvent
@@ -177,7 +260,7 @@ export const updateEventService = async (
     .map((a) => a.image)
     .filter((img): img is string => Boolean(img));
   const oldRewardImages = (oldEvent.rewards || [])
-    .map((r) => r.image)
+    .flatMap((r) => r.images || [])
     .filter((img): img is string => Boolean(img));
   const oldAllImages = [...oldEventImages, ...oldArtistImages, ...oldRewardImages];
 
@@ -207,7 +290,10 @@ export const updateEventService = async (
           name: artist.name,
           ...(artist.role ? { role: artist.role } : {}),
           image: imageUrl,
-          socialMediaLinks: artist.socialMediaLinks || {},
+          socialMediaLinks:
+            typeof artist.socialMediaLinks === 'object' && artist.socialMediaLinks !== null
+              ? artist.socialMediaLinks
+              : oldEvent.artistInfo?.[index]?.socialMediaLinks || {},
         };
       })
     );
@@ -216,16 +302,29 @@ export const updateEventService = async (
   // 3. Process Rewards
   let finalRewards: any = oldEvent.rewards;
   if (data.rewards !== undefined) {
+    const totalRewards = (data.rewards || []).length;
     finalRewards = await Promise.all(
       (data.rewards || []).map(async (reward, index) => {
-        const rewardFile = rewardImageFiles[index];
-        let imageUrl = reward.image || oldEvent.rewards?.[index]?.image || '';
+        const rewardImagesList: string[] = [];
 
-        if (rewardFile) {
-          imageUrl = await uploadToS3(rewardFile, 'rewards');
+        if (Array.isArray(reward.images)) {
+          rewardImagesList.push(...reward.images.filter(Boolean));
         }
 
-        if (!imageUrl) {
+        if (rewardImagesList.length === 0 && oldEvent.rewards?.[index]) {
+          const oldReward = oldEvent.rewards[index];
+          if (Array.isArray(oldReward.images) && oldReward.images.length > 0) {
+            rewardImagesList.push(...oldReward.images.filter(Boolean));
+          }
+        }
+
+        const filesForReward = getRewardFilesForIndex(rewardImageFiles, index, totalRewards);
+        for (const file of filesForReward) {
+          const s3Url = await uploadToS3(file, 'rewards');
+          rewardImagesList.push(s3Url);
+        }
+
+        if (rewardImagesList.length === 0) {
           throw new AppError(`A picture is required for reward: "${reward.title}"`, 400);
         }
 
@@ -234,7 +333,7 @@ export const updateEventService = async (
           ...(reward.description ? { description: reward.description } : {}),
           pointsRequired: reward.pointsRequired,
           stock: reward.stock,
-          image: imageUrl,
+          images: rewardImagesList,
         };
       })
     );
@@ -269,7 +368,7 @@ export const updateEventService = async (
     .map((a) => a.image)
     .filter((img): img is string => Boolean(img));
   const newRewardImages = (updatedEvent.rewards || [])
-    .map((r) => r.image)
+    .flatMap((r) => r.images || [])
     .filter((img): img is string => Boolean(img));
   const newAllImagesSet = new Set([...newEventImages, ...newArtistImages, ...newRewardImages]);
 
@@ -441,7 +540,7 @@ export const deleteEventService = async (
   const imagesToDelete = [
     ...(event.images || []),
     ...(event.artistInfo || []).map((a) => a.image),
-    ...(event.rewards || []).map((r) => r.image),
+    ...(event.rewards || []).flatMap((r) => r.images || []),
   ].filter((img): img is string => Boolean(img));
 
   for (const imgUrl of imagesToDelete) {

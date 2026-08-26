@@ -15,7 +15,7 @@ export interface IReward {
   description?: string;
   pointsRequired: number;
   stock: number;
-  image: string;
+  images: string[];
 }
 
 export interface IEvent extends Document {
