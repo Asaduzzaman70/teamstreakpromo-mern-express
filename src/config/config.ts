@@ -27,7 +27,7 @@ interface Config {
 const config: Config = {
   port: Number(process.env.PORT) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  serverUrl: process.env.SERVER_URL || 'https://teamstreakpromo-mern-express.vercel.app',
+  serverUrl: process.env.SERVER_URL || 'https://teamstreakpromo-mern-express-indol.vercel.app',
   mongoUri: process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/teamstreakpromo',
   jwtSecret: process.env.JWT_SECRET || 'fallback_secret_teamstreakpromo',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '15m',
