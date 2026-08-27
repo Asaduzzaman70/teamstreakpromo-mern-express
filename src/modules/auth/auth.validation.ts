@@ -13,6 +13,8 @@ export const registerSchema = z
       .string({ message: 'Password is required' })
       .min(6, 'Password must be at least 6 characters'),
     confirmPassword: z.string({ message: 'Confirm password is required' }),
+    phoneNumber: z.string().trim().optional(),
+    profileImage: z.string().trim().optional(),
     role: z
       .enum(['USER', 'HOST', 'BUSINESS'], {
         message: 'Role must be USER, HOST, or BUSINESS',
@@ -134,6 +136,7 @@ export const updateProfileSchema = z.object({
   name: z.string().trim().min(1, 'Name cannot be empty').optional(),
   email: z.string().trim().email('Invalid email address').optional(),
   phoneNumber: z.string().trim().optional(),
+  profileImage: z.string().trim().optional(),
   businessName: z.string().trim().min(1, 'Business name cannot be empty').optional(),
   businessDescription: z.string().trim().min(1, 'Business description cannot be empty').optional(),
   location: z.string().trim().min(1, 'Location cannot be empty').optional(),

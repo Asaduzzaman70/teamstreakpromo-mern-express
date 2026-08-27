@@ -31,10 +31,15 @@ import { uploadFields } from '../../middlewares/multer.middleware.js';
 const router = Router();
 
 const registrationImageFields = uploadFields([
+  { name: 'profileImage', maxCount: 1 },
   { name: 'govtIdFrontImage', maxCount: 1 },
   { name: 'govtIdBackImage', maxCount: 1 },
   { name: 'businessLicenseFrontImage', maxCount: 1 },
   { name: 'businessLicenseBackImage', maxCount: 1 },
+]);
+
+const profileUploadFields = uploadFields([
+  { name: 'profileImage', maxCount: 1 },
 ]);
 
 router.post(
@@ -56,8 +61,8 @@ router.post('/change-password', protect, validateRequest(changePasswordSchema), 
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);
 router.post('/logout', protect, logoutUser);
 router.get('/me', protect, getMe);
-router.patch('/me', protect, validateRequest(updateProfileSchema), updateProfile);
-router.patch('/profile', protect, validateRequest(updateProfileSchema), updateProfile);
-router.put('/profile', protect, validateRequest(updateProfileSchema), updateProfile);
+router.patch('/me', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
+router.patch('/profile', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
+router.put('/profile', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
 
 export default router;

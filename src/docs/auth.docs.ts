@@ -13,6 +13,8 @@ export const authDocs = {
               properties: {
                 name: { type: 'string', example: 'John Host' },
                 email: { type: 'string', example: 'host@example.com' },
+                phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', format: 'binary', description: 'User Profile Image file upload' },
                 password: { type: 'string', example: 'password123' },
                 confirmPassword: { type: 'string', example: 'password123' },
                 role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'HOST', default: 'USER' },
@@ -36,6 +38,8 @@ export const authDocs = {
               properties: {
                 name: { type: 'string', example: 'John Doe' },
                 email: { type: 'string', example: 'john@example.com' },
+                phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                 password: { type: 'string', example: 'password123' },
                 confirmPassword: { type: 'string', example: 'password123' },
                 role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'USER', default: 'USER' },
@@ -143,6 +147,8 @@ export const authDocs = {
                       _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
                       name: { type: 'string', example: 'John Doe' },
                       email: { type: 'string', example: 'john@example.com' },
+                      phoneNumber: { type: 'string', example: '+1234567890' },
+                      profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                       role: { type: 'string', example: 'USER' },
                       accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
                       refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
@@ -245,6 +251,8 @@ export const authDocs = {
                       _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
                       name: { type: 'string', example: 'John Doe' },
                       email: { type: 'string', example: 'john@example.com' },
+                      phoneNumber: { type: 'string', example: '+1234567890' },
+                      profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                       role: { type: 'string', example: 'USER' },
                       accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
                       refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' },
@@ -655,6 +663,7 @@ export const authDocs = {
                       name: { type: 'string', example: 'John Doe' },
                       email: { type: 'string', example: 'john@example.com' },
                       phoneNumber: { type: 'string', example: '+1234567890' },
+                      profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                       role: { type: 'string', example: 'USER' },
                       totalPoints: { type: 'integer', example: 0 },
                       walletBalance: { type: 'number', example: 0.0 },
@@ -700,12 +709,26 @@ export const authDocs = {
       },
     },
     patch: {
-      summary: 'Update currently authenticated user profile (name, email, phoneNumber, businessName, businessDescription, location)',
+      summary: 'Update currently authenticated user profile (name, email, phoneNumber, profileImage, businessName, businessDescription, location)',
       tags: ['Authentication'],
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', example: 'John Doe Updated' },
+                email: { type: 'string', example: 'johnnew@example.com' },
+                phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', format: 'binary', description: 'New profile image file upload' },
+                businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
+                businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
+                location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
+              },
+            },
+          },
           'application/json': {
             schema: {
               type: 'object',
@@ -713,6 +736,7 @@ export const authDocs = {
                 name: { type: 'string', example: 'John Doe Updated' },
                 email: { type: 'string', example: 'johnnew@example.com' },
                 phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                 businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
                 businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
                 location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
@@ -730,12 +754,26 @@ export const authDocs = {
   },
   '/api/auth/profile': {
     patch: {
-      summary: 'Update user profile (name, email, phoneNumber, businessName, businessDescription, location)',
+      summary: 'Update user profile (name, email, phoneNumber, profileImage, businessName, businessDescription, location)',
       tags: ['Authentication'],
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
         content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', example: 'John Doe Updated' },
+                email: { type: 'string', example: 'johnnew@example.com' },
+                phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', format: 'binary', description: 'New profile image file upload' },
+                businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
+                businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
+                location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
+              },
+            },
+          },
           'application/json': {
             schema: {
               type: 'object',
@@ -743,6 +781,7 @@ export const authDocs = {
                 name: { type: 'string', example: 'John Doe Updated' },
                 email: { type: 'string', example: 'johnnew@example.com' },
                 phoneNumber: { type: 'string', example: '+1234567890' },
+                profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                 businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
                 businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
                 location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },

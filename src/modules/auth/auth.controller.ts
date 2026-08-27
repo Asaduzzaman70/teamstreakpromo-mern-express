@@ -158,7 +158,7 @@ export const logoutUser = catchAsync(async (req: AuthenticatedRequest, res: Resp
   });
 });
 
-// @desc    Update logged in user profile (name, email, phone number)
+// @desc    Update logged in user profile (name, email, phone number, profileImage)
 // @route   PATCH /api/auth/profile or PATCH /api/auth/me
 // @access  Private
 export const updateProfile = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
@@ -166,7 +166,11 @@ export const updateProfile = catchAsync(async (req: AuthenticatedRequest, res: R
     throw new AppError('Not authorized', 401);
   }
 
-  const updatedProfile = await updateProfileService(req.user.id, req.body);
+  const updatedProfile = await updateProfileService(
+    req.user.id,
+    req.body,
+    req.file || (req.files as any)
+  );
   sendResponse(res, {
     statusCode: 200,
     message: 'Profile updated successfully',

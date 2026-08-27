@@ -49,7 +49,7 @@ export const registerUserService = async (
   data: RegisterInput,
   files?: { [fieldname: string]: Express.Multer.File[] }
 ): Promise<RegisterResponse> => {
-  const { name, email, password, role, isAgeOver18, agreesToTerms, businessProfile } = data;
+  const { name, email, password, phoneNumber, role, isAgeOver18, agreesToTerms, businessProfile } = data;
 
   const userExists = await User.findOne({ email });
 
@@ -119,10 +119,17 @@ export const registerUserService = async (
     }
   }
 
+  let profileImageUrl = data.profileImage || '';
+  if (files?.['profileImage']?.[0]) {
+    profileImageUrl = await uploadToS3(files['profileImage'][0], 'profile-images');
+  }
+
   const user = new User({
     name,
     email,
     password,
+    phoneNumber: phoneNumber || '',
+    profileImage: profileImageUrl,
     role,
     isAgeOver18,
     agreesToTerms,
@@ -207,6 +214,8 @@ export const loginUserService = async (
     _id: user._id,
     name: user.name,
     email: user.email,
+    phoneNumber: user.phoneNumber,
+    profileImage: user.profileImage || '',
     role: user.role,
     accessToken,
     refreshToken,
@@ -305,6 +314,8 @@ export const verifyRegisterOtpService = async (
     _id: user._id,
     name: user.name,
     email: user.email,
+    phoneNumber: user.phoneNumber,
+    profileImage: user.profileImage || '',
     role: user.role,
     accessToken,
     refreshToken,
@@ -484,14 +495,15 @@ export const logoutUserService = async (
 
 export const updateProfileService = async (
   userId: string,
-  data: UpdateProfileInput
+  data: UpdateProfileInput,
+  file?: Express.Multer.File | { [fieldname: string]: Express.Multer.File[] }
 ): Promise<UserProfileResponse> => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  const { name, email, phoneNumber, businessName, businessDescription, location } = data;
+  const { name, email, phoneNumber, profileImage, businessName, businessDescription, location } = data;
 
   const hasBusinessFields =
     businessName !== undefined || businessDescription !== undefined || location !== undefined;
@@ -517,6 +529,22 @@ export const updateProfileService = async (
 
   if (phoneNumber !== undefined) {
     user.phoneNumber = phoneNumber.trim();
+  }
+
+  let uploadedProfileImage: Express.Multer.File | undefined;
+  if (file) {
+    if ('buffer' in file && file.buffer) {
+      uploadedProfileImage = file as Express.Multer.File;
+    } else if (typeof file === 'object' && 'profileImage' in file && Array.isArray((file as any).profileImage)) {
+      uploadedProfileImage = (file as any).profileImage[0];
+    }
+  }
+
+  if (uploadedProfileImage) {
+    const s3Url = await uploadToS3(uploadedProfileImage, 'profile-images');
+    user.profileImage = s3Url;
+  } else if (profileImage !== undefined) {
+    user.profileImage = profileImage.trim();
   }
 
   await user.save();

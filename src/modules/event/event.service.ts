@@ -509,7 +509,7 @@ export const getEventByIdService = async (
   id: string
 ): Promise<IEvent> => {
   const event = await Event.findById(id)
-    .populate('hostId', 'name email role')
+    .populate('hostId', 'name email role profileImage')
     .populate('categoryId', 'name description');
 
   if (!event) {

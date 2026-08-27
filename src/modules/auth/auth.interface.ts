@@ -30,11 +30,12 @@ export interface AuthResponse {
   _id: unknown;
   name: string;
   email: string;
-  phoneNumber?: string;
+  phoneNumber?: string | undefined;
+  profileImage?: string | undefined;
   role: string;
   accessToken: string;
   refreshToken: string;
-  businessProfile?: IBusinessProfile | null;
+  businessProfile?: IBusinessProfile | null | undefined;
 }
 
 export interface RefreshTokenResponse {
@@ -67,7 +68,8 @@ export interface UserProfileResponse {
   _id: unknown;
   name: string;
   email: string;
-  phoneNumber?: string;
+  phoneNumber?: string | undefined;
+  profileImage?: string | undefined;
   role: string;
   totalPoints: number;
   walletBalance: number;
@@ -75,7 +77,7 @@ export interface UserProfileResponse {
   agreesToTerms: boolean;
   createdAt: Date;
   updatedAt: Date;
-  businessProfile?: IBusinessProfile | null;
+  businessProfile?: IBusinessProfile | null | undefined;
 }
 
 
