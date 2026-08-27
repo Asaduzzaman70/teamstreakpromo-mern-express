@@ -220,6 +220,7 @@ export const eventDocs = {
     get: {
       summary: 'Get single event details by ID',
       tags: ['Event'],
+      security: [{ bearerAuth: [] }],
       parameters: [
         {
           name: 'id',
