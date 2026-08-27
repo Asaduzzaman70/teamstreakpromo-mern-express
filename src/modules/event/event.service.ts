@@ -355,7 +355,7 @@ export const updateEventService = async (
     new: true,
     runValidators: true,
   })
-    .populate('hostId', 'name email role')
+    .populate('hostId', 'name email role profileImage')
     .populate('categoryId', 'name description');
 
   if (!updatedEvent) {
@@ -470,7 +470,7 @@ export const getAllEventsService = async (
 
   // Retrieve candidate events matching base filters
   let candidateEvents = await Event.find(filter)
-    .populate('hostId', 'name email role')
+    .populate('hostId', 'name email role profileImage')
     .populate('categoryId', 'name description');
 
   // Filter events within exact 50km radius if lat/lng were provided
@@ -599,7 +599,7 @@ export const getAdminEventsService = async (
   const totalPage = Math.ceil(total / limit);
 
   const paginatedEvents = await Event.find(filter)
-    .populate('hostId', 'name email role')
+    .populate('hostId', 'name email role profileImage')
     .populate({
       path: 'categoryId',
       select: 'name description parentCategory',
