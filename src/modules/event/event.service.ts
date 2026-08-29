@@ -471,6 +471,37 @@ export const getAllEventsService = async (
     }
   }
 
+  // Filter by ticket availability (Available, Sold Out, Few Left)
+  if (query.ticketAvailability) {
+    const availability = query.ticketAvailability
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[\s\-_]+/g, '_');
+
+    if (availability === 'AVAILABLE' || availability === 'IN_STOCK') {
+      filter.stock = { $gt: 0 };
+    } else if (availability === 'SOLD_OUT' || availability === 'SOLDOUT' || availability === 'OUT_OF_STOCK') {
+      filter.stock = { $lte: 0 };
+    } else if (availability === 'FEW_LEFT' || availability === 'FEWLEFT') {
+      filter.stock = { $gt: 0, $lte: 10 };
+    }
+  }
+
+  // Filter by rewards availability (true / false)
+  if (query.rewardsAvailable !== undefined && query.rewardsAvailable !== '') {
+    const isRewardsAvailable =
+      query.rewardsAvailable === true || query.rewardsAvailable === 'true';
+    const isRewardsUnavailable =
+      query.rewardsAvailable === false || query.rewardsAvailable === 'false';
+
+    if (isRewardsAvailable) {
+      filter['rewards.0'] = { $exists: true };
+    } else if (isRewardsUnavailable) {
+      filter['rewards.0'] = { $exists: false };
+    }
+  }
+
   const rawLat = query.latitude ?? query.lat;
   const rawLng = query.longitude ?? query.lng ?? query.lan ?? query.lon;
 
@@ -658,6 +689,37 @@ export const getAdminEventsService = async (
     }
     if (Object.keys(priceFilter).length > 0) {
       filter.ticketPrice = priceFilter;
+    }
+  }
+
+  // Filter by ticket availability (Available, Sold Out, Few Left)
+  if (query.ticketAvailability) {
+    const availability = query.ticketAvailability
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replace(/[\s\-_]+/g, '_');
+
+    if (availability === 'AVAILABLE' || availability === 'IN_STOCK') {
+      filter.stock = { $gt: 0 };
+    } else if (availability === 'SOLD_OUT' || availability === 'SOLDOUT' || availability === 'OUT_OF_STOCK') {
+      filter.stock = { $lte: 0 };
+    } else if (availability === 'FEW_LEFT' || availability === 'FEWLEFT') {
+      filter.stock = { $gt: 0, $lte: 10 };
+    }
+  }
+
+  // Filter by rewards availability (true / false)
+  if (query.rewardsAvailable !== undefined && query.rewardsAvailable !== '') {
+    const isRewardsAvailable =
+      query.rewardsAvailable === true || query.rewardsAvailable === 'true';
+    const isRewardsUnavailable =
+      query.rewardsAvailable === false || query.rewardsAvailable === 'false';
+
+    if (isRewardsAvailable) {
+      filter['rewards.0'] = { $exists: true };
+    } else if (isRewardsUnavailable) {
+      filter['rewards.0'] = { $exists: false };
     }
   }
 

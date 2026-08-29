@@ -171,6 +171,21 @@ export const eventDocs = {
           description: 'Filter events with ticket price less than or equal to this amount',
           schema: { type: 'number' },
         },
+        {
+          name: 'ticketAvailability',
+          in: 'query',
+          description: 'Filter events by ticket availability (AVAILABLE: stock > 0, SOLD_OUT: stock = 0, FEW_LEFT: stock <= 10)',
+          schema: {
+            type: 'string',
+            enum: ['AVAILABLE', 'SOLD_OUT', 'FEW_LEFT'],
+          },
+        },
+        {
+          name: 'rewardsAvailable',
+          in: 'query',
+          description: 'Filter events with rewards available (true) or without rewards (false)',
+          schema: { type: 'boolean' },
+        },
       ],
       responses: {
         '200': { description: 'Events retrieved successfully' },
@@ -243,6 +258,21 @@ export const eventDocs = {
           in: 'query',
           description: 'Filter events with ticket price less than or equal to this amount',
           schema: { type: 'number' },
+        },
+        {
+          name: 'ticketAvailability',
+          in: 'query',
+          description: 'Filter events by ticket availability (AVAILABLE: stock > 0, SOLD_OUT: stock = 0, FEW_LEFT: stock <= 10)',
+          schema: {
+            type: 'string',
+            enum: ['AVAILABLE', 'SOLD_OUT', 'FEW_LEFT'],
+          },
+        },
+        {
+          name: 'rewardsAvailable',
+          in: 'query',
+          description: 'Filter events with rewards available (true) or without rewards (false)',
+          schema: { type: 'boolean' },
         },
       ],
       responses: {

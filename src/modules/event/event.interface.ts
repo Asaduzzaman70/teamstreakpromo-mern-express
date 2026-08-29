@@ -60,6 +60,8 @@ export interface EventQuery {
   date?: string | Date;
   minPrice?: number | string;
   maxPrice?: number | string;
+  ticketAvailability?: 'AVAILABLE' | 'SOLD_OUT' | 'FEW_LEFT' | string;
+  rewardsAvailable?: boolean | string;
 }
 
 
