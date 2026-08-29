@@ -57,6 +57,7 @@ export interface EventQuery {
   lon?: number | string;
   seed?: string;
   userId?: string;
+  date?: string | Date;
 }
 
 

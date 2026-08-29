@@ -153,6 +153,12 @@ export const eventDocs = {
           description: 'Optional random seed for per-user consistent random pagination',
           schema: { type: 'string' },
         },
+        {
+          name: 'date',
+          in: 'query',
+          description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
+          schema: { type: 'string', format: 'date' },
+        },
       ],
       responses: {
         '200': { description: 'Events retrieved successfully' },
@@ -207,6 +213,12 @@ export const eventDocs = {
           in: 'query',
           description: 'Filter events subcategorywise',
           schema: { type: 'string' },
+        },
+        {
+          name: 'date',
+          in: 'query',
+          description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
+          schema: { type: 'string', format: 'date' },
         },
       ],
       responses: {

@@ -436,6 +436,21 @@ export const getAllEventsService = async (
     filter.hostId = query.hostId;
   }
 
+  // Filter by event date
+  if (query.date) {
+    const parsedDate = new Date(query.date as string | Date);
+    if (!isNaN(parsedDate.getTime())) {
+      const startOfDay = new Date(parsedDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(parsedDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      filter.startDate = { $lte: endOfDay };
+      filter.endDate = { ...(filter.endDate || {}), $gte: startOfDay };
+    }
+  }
+
   const rawLat = query.latitude ?? query.lat;
   const rawLng = query.longitude ?? query.lng ?? query.lan ?? query.lon;
 
@@ -589,6 +604,21 @@ export const getAdminEventsService = async (
       { placeName: { $regex: searchRegex } },
       ...(hostIds.length > 0 ? [{ hostId: { $in: hostIds } }] : []),
     ];
+  }
+
+  // Filter by event date
+  if (query.date) {
+    const parsedDate = new Date(query.date as string | Date);
+    if (!isNaN(parsedDate.getTime())) {
+      const startOfDay = new Date(parsedDate);
+      startOfDay.setUTCHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(parsedDate);
+      endOfDay.setUTCHours(23, 59, 59, 999);
+
+      filter.startDate = { $lte: endOfDay };
+      filter.endDate = { ...(filter.endDate || {}), $gte: startOfDay };
+    }
   }
 
   const page = Math.max(1, Number(query.page) || 1);
