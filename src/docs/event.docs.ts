@@ -159,6 +159,18 @@ export const eventDocs = {
           description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
           schema: { type: 'string', format: 'date' },
         },
+        {
+          name: 'minPrice',
+          in: 'query',
+          description: 'Filter events with ticket price greater than or equal to this amount',
+          schema: { type: 'number' },
+        },
+        {
+          name: 'maxPrice',
+          in: 'query',
+          description: 'Filter events with ticket price less than or equal to this amount',
+          schema: { type: 'number' },
+        },
       ],
       responses: {
         '200': { description: 'Events retrieved successfully' },
@@ -219,6 +231,18 @@ export const eventDocs = {
           in: 'query',
           description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
           schema: { type: 'string', format: 'date' },
+        },
+        {
+          name: 'minPrice',
+          in: 'query',
+          description: 'Filter events with ticket price greater than or equal to this amount',
+          schema: { type: 'number' },
+        },
+        {
+          name: 'maxPrice',
+          in: 'query',
+          description: 'Filter events with ticket price less than or equal to this amount',
+          schema: { type: 'number' },
         },
       ],
       responses: {

@@ -451,6 +451,26 @@ export const getAllEventsService = async (
     }
   }
 
+  // Filter by price range (ticket price)
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    const priceFilter: Record<string, any> = {};
+    if (query.minPrice !== undefined && query.minPrice !== '') {
+      const parsedMin = Number(query.minPrice);
+      if (!isNaN(parsedMin)) {
+        priceFilter.$gte = parsedMin;
+      }
+    }
+    if (query.maxPrice !== undefined && query.maxPrice !== '') {
+      const parsedMax = Number(query.maxPrice);
+      if (!isNaN(parsedMax)) {
+        priceFilter.$lte = parsedMax;
+      }
+    }
+    if (Object.keys(priceFilter).length > 0) {
+      filter.ticketPrice = priceFilter;
+    }
+  }
+
   const rawLat = query.latitude ?? query.lat;
   const rawLng = query.longitude ?? query.lng ?? query.lan ?? query.lon;
 
@@ -618,6 +638,26 @@ export const getAdminEventsService = async (
 
       filter.startDate = { $lte: endOfDay };
       filter.endDate = { ...(filter.endDate || {}), $gte: startOfDay };
+    }
+  }
+
+  // Filter by price range (ticket price)
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    const priceFilter: Record<string, any> = {};
+    if (query.minPrice !== undefined && query.minPrice !== '') {
+      const parsedMin = Number(query.minPrice);
+      if (!isNaN(parsedMin)) {
+        priceFilter.$gte = parsedMin;
+      }
+    }
+    if (query.maxPrice !== undefined && query.maxPrice !== '') {
+      const parsedMax = Number(query.maxPrice);
+      if (!isNaN(parsedMax)) {
+        priceFilter.$lte = parsedMax;
+      }
+    }
+    if (Object.keys(priceFilter).length > 0) {
+      filter.ticketPrice = priceFilter;
     }
   }
 

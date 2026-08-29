@@ -58,6 +58,8 @@ export interface EventQuery {
   seed?: string;
   userId?: string;
   date?: string | Date;
+  minPrice?: number | string;
+  maxPrice?: number | string;
 }
 
 
