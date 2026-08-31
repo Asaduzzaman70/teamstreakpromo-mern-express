@@ -638,47 +638,74 @@ export const authDocs = {
     },
   },
   '/api/auth/me': {
-    patch: {
-      summary: 'Update currently authenticated user profile (all fields are optional)',
+    get: {
+      summary: 'Get currently authenticated user profile',
       tags: ['Authentication'],
-      security: [{ bearerAuth: [] }],
-      requestBody: {
-        required: false,
-        content: {
-          'multipart/form-data': {
-            schema: {
-              type: 'object',
-              properties: {
-                name: { type: 'string', example: 'John Doe Updated' },
-                email: { type: 'string', example: 'johnnew@example.com' },
-                phoneNumber: { type: 'string', example: '+1234567890' },
-                profileImage: { type: 'string', format: 'binary', description: 'New profile image file upload' },
-                businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
-                businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
-                location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
-              },
-            },
-          },
-          'application/json': {
-            schema: {
-              type: 'object',
-              properties: {
-                name: { type: 'string', example: 'John Doe Updated' },
-                email: { type: 'string', example: 'johnnew@example.com' },
-                phoneNumber: { type: 'string', example: '+1234567890' },
-                profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
-                businessName: { type: 'string', example: 'Apex Events LLC', description: 'Allowed for HOST and BUSINESS roles' },
-                businessDescription: { type: 'string', example: 'Event management company', description: 'Allowed for HOST and BUSINESS roles' },
-                location: { type: 'string', example: 'New York, NY', description: 'Allowed for HOST and BUSINESS roles' },
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'User profile retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
+                      name: { type: 'string', example: 'John Doe' },
+                      email: { type: 'string', example: 'john@example.com' },
+                      phoneNumber: { type: 'string', example: '+1234567890' },
+                      profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
+                      role: { type: 'string', example: 'USER' },
+                      totalPoints: { type: 'integer', example: 0 },
+                      walletBalance: { type: 'number', example: 0.0 },
+                      isAgeOver18: { type: 'boolean', example: true },
+                      agreesToTerms: { type: 'boolean', example: true },
+                      createdAt: { type: 'string', format: 'date-time' },
+                      updatedAt: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
               },
             },
           },
         },
-      },
-      responses: {
-        '200': { description: 'Profile updated successfully' },
-        '400': { description: 'Validation error, email already in use, or unauthorized field for user role' },
-        '401': { description: 'Unauthorized' },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'Not authorized, token missing' },
+                },
+              },
+            },
+          },
+        },
+        '404': {
+          description: 'User not found',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: false },
+                  message: { type: 'string', example: 'User not found' },
+                },
+              },
+            },
+          },
+        },
       },
     },
   },
