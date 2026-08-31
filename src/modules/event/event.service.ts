@@ -410,6 +410,107 @@ const getSeedHash = (id: string, seed: string): number => {
   return (hash >>> 0) / 4294967296;
 };
 
+interface IDateInterval {
+  startOfDay: Date;
+  endOfDay: Date;
+}
+
+const parseDateIntervals = (dateInput: string | Date | (string | Date)[]): IDateInterval[] => {
+  const intervals: IDateInterval[] = [];
+  const rawItems: (string | Date)[] = Array.isArray(dateInput) ? dateInput : [dateInput];
+
+  for (const item of rawItems) {
+    if (item instanceof Date) {
+      if (!isNaN(item.getTime())) {
+        const start = new Date(item);
+        start.setUTCHours(0, 0, 0, 0);
+        const end = new Date(item);
+        end.setUTCHours(23, 59, 59, 999);
+        intervals.push({ startOfDay: start, endOfDay: end });
+      }
+      continue;
+    }
+
+    if (typeof item !== 'string') continue;
+
+    // Split by comma to support discrete dates like "2026-08-12,2026-08-14,2026-08-20"
+    const commaSegments = item.split(',').map((s) => s.trim()).filter(Boolean);
+
+    for (const segment of commaSegments) {
+      // Check if this segment represents a range (e.g., 'to', ' - ', '_', ':')
+      const rangeDelimiters = [' to ', ' - ', '_', ':'];
+      let rangeParts: string[] = [];
+      for (const delimiter of rangeDelimiters) {
+        if (segment.includes(delimiter)) {
+          rangeParts = segment.split(delimiter).map((p) => p.trim()).filter(Boolean);
+          break;
+        }
+      }
+
+      if (rangeParts.length === 2 && rangeParts[0] && rangeParts[1]) {
+        const d1 = new Date(rangeParts[0]);
+        const d2 = new Date(rangeParts[1]);
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          let start = new Date(d1);
+          start.setUTCHours(0, 0, 0, 0);
+          let end = new Date(d2);
+          end.setUTCHours(23, 59, 59, 999);
+
+          if (start > end) {
+            const temp = start;
+            start = end;
+            end = temp;
+          }
+          intervals.push({ startOfDay: start, endOfDay: end });
+        }
+      } else {
+        const parsed = new Date(segment);
+        if (!isNaN(parsed.getTime())) {
+          const start = new Date(parsed);
+          start.setUTCHours(0, 0, 0, 0);
+          const end = new Date(parsed);
+          end.setUTCHours(23, 59, 59, 999);
+          intervals.push({ startOfDay: start, endOfDay: end });
+        }
+      }
+    }
+  }
+
+  return intervals;
+};
+
+const applyDateFilter = (filter: Record<string, any>, query: EventQuery): void => {
+  if (!query.date) return;
+
+  const intervals = parseDateIntervals(query.date);
+  if (intervals.length === 0) return;
+
+  if (intervals.length === 1 && intervals[0]) {
+    filter.startDate = { ...(filter.startDate || {}), $lte: intervals[0].endOfDay };
+    filter.endDate = { ...(filter.endDate || {}), $gte: intervals[0].startOfDay };
+    return;
+  }
+
+  // Multiple discrete dates or date ranges (e.g. 12th OR 14th OR 20th)
+  const dateOrConditions = intervals.map((interval) => ({
+    startDate: { $lte: interval.endOfDay },
+    endDate: { $gte: interval.startOfDay },
+  }));
+
+  if (filter.$or) {
+    if (filter.$and) {
+      filter.$and.push({ $or: dateOrConditions });
+    } else {
+      filter.$and = [{ $or: filter.$or }, { $or: dateOrConditions }];
+      delete filter.$or;
+    }
+  } else if (filter.$and) {
+    filter.$and.push({ $or: dateOrConditions });
+  } else {
+    filter.$or = dateOrConditions;
+  }
+};
+
 export const getAllEventsService = async (
   query: EventQuery
 ): Promise<{ meta: IMeta; result: IEvent[] }> => {
@@ -436,20 +537,8 @@ export const getAllEventsService = async (
     filter.hostId = query.hostId;
   }
 
-  // Filter by event date
-  if (query.date) {
-    const parsedDate = new Date(query.date as string | Date);
-    if (!isNaN(parsedDate.getTime())) {
-      const startOfDay = new Date(parsedDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(parsedDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-
-      filter.startDate = { $lte: endOfDay };
-      filter.endDate = { ...(filter.endDate || {}), $gte: startOfDay };
-    }
-  }
+  // Filter by event date range / date
+  applyDateFilter(filter, query);
 
   // Filter by price range (ticket price)
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {
@@ -657,20 +746,8 @@ export const getAdminEventsService = async (
     ];
   }
 
-  // Filter by event date
-  if (query.date) {
-    const parsedDate = new Date(query.date as string | Date);
-    if (!isNaN(parsedDate.getTime())) {
-      const startOfDay = new Date(parsedDate);
-      startOfDay.setUTCHours(0, 0, 0, 0);
-
-      const endOfDay = new Date(parsedDate);
-      endOfDay.setUTCHours(23, 59, 59, 999);
-
-      filter.startDate = { $lte: endOfDay };
-      filter.endDate = { ...(filter.endDate || {}), $gte: startOfDay };
-    }
-  }
+  // Filter by event date range / date
+  applyDateFilter(filter, query);
 
   // Filter by price range (ticket price)
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {

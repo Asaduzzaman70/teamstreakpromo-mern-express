@@ -156,8 +156,8 @@ export const eventDocs = {
         {
           name: 'date',
           in: 'query',
-          description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
-          schema: { type: 'string', format: 'date' },
+          description: 'Filter events by single date ("2026-08-12"), multiple specific dates ("2026-08-12,2026-08-14,2026-08-20"), or date ranges ("2026-08-12 to 2026-08-14", "2026-08-12 - 2026-08-14")',
+          schema: { type: 'string' },
         },
         {
           name: 'minPrice',
@@ -244,8 +244,8 @@ export const eventDocs = {
         {
           name: 'date',
           in: 'query',
-          description: 'Filter events occurring on a specific date (e.g. YYYY-MM-DD or ISO string)',
-          schema: { type: 'string', format: 'date' },
+          description: 'Filter events by single date ("2026-08-12"), multiple specific dates ("2026-08-12,2026-08-14,2026-08-20"), or date ranges ("2026-08-12 to 2026-08-14")',
+          schema: { type: 'string' },
         },
         {
           name: 'minPrice',

@@ -57,7 +57,7 @@ export interface EventQuery {
   lon?: number | string;
   seed?: string;
   userId?: string;
-  date?: string | Date;
+  date?: string | Date | (string | Date)[];
   minPrice?: number | string;
   maxPrice?: number | string;
   ticketAvailability?: 'AVAILABLE' | 'SOLD_OUT' | 'FEW_LEFT' | string;
