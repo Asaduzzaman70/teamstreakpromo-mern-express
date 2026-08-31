@@ -638,82 +638,12 @@ export const authDocs = {
     },
   },
   '/api/auth/me': {
-    get: {
-      summary: 'Get currently authenticated user profile',
-      tags: ['Authentication'],
-      security: [
-        {
-          bearerAuth: [],
-        },
-      ],
-      responses: {
-        '200': {
-          description: 'User profile retrieved successfully',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: { type: 'boolean', example: true },
-                  statusCode: { type: 'number', example: 200 },
-                  data: {
-                    type: 'object',
-                    properties: {
-                      _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
-                      name: { type: 'string', example: 'John Doe' },
-                      email: { type: 'string', example: 'john@example.com' },
-                      phoneNumber: { type: 'string', example: '+1234567890' },
-                      profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
-                      role: { type: 'string', example: 'USER' },
-                      totalPoints: { type: 'integer', example: 0 },
-                      walletBalance: { type: 'number', example: 0.0 },
-                      isAgeOver18: { type: 'boolean', example: true },
-                      agreesToTerms: { type: 'boolean', example: true },
-                      createdAt: { type: 'string', format: 'date-time' },
-                      updatedAt: { type: 'string', format: 'date-time' },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        '401': {
-          description: 'Unauthorized - Missing or invalid token',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: { type: 'boolean', example: false },
-                  message: { type: 'string', example: 'Not authorized, token missing' },
-                },
-              },
-            },
-          },
-        },
-        '404': {
-          description: 'User not found',
-          content: {
-            'application/json': {
-              schema: {
-                type: 'object',
-                properties: {
-                  success: { type: 'boolean', example: false },
-                  message: { type: 'string', example: 'User not found' },
-                },
-              },
-            },
-          },
-        },
-      },
-    },
     patch: {
-      summary: 'Update currently authenticated user profile (name, email, phoneNumber, profileImage, businessName, businessDescription, location)',
+      summary: 'Update currently authenticated user profile (all fields are optional)',
       tags: ['Authentication'],
       security: [{ bearerAuth: [] }],
       requestBody: {
-        required: true,
+        required: false,
         content: {
           'multipart/form-data': {
             schema: {
@@ -754,11 +684,11 @@ export const authDocs = {
   },
   '/api/auth/profile': {
     patch: {
-      summary: 'Update user profile (name, email, phoneNumber, profileImage, businessName, businessDescription, location)',
+      summary: 'Update user profile (all fields are optional)',
       tags: ['Authentication'],
       security: [{ bearerAuth: [] }],
       requestBody: {
-        required: true,
+        required: false,
         content: {
           'multipart/form-data': {
             schema: {

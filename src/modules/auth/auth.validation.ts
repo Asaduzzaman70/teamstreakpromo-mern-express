@@ -133,13 +133,18 @@ export const refreshTokenSchema = z.object({
 });
 
 export const updateProfileSchema = z.object({
-  name: z.string().trim().min(1, 'Name cannot be empty').optional(),
-  email: z.string().trim().email('Invalid email address').optional(),
+  name: z.string().trim().optional(),
+  email: z
+    .string()
+    .trim()
+    .email('Invalid email address')
+    .optional()
+    .or(z.literal('')),
   phoneNumber: z.string().trim().optional(),
   profileImage: z.string().trim().optional(),
-  businessName: z.string().trim().min(1, 'Business name cannot be empty').optional(),
-  businessDescription: z.string().trim().min(1, 'Business description cannot be empty').optional(),
-  location: z.string().trim().min(1, 'Location cannot be empty').optional(),
+  businessName: z.string().trim().optional(),
+  businessDescription: z.string().trim().optional(),
+  location: z.string().trim().optional(),
 });
 
 export const changePasswordSchema = z

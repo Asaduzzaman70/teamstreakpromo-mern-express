@@ -506,13 +506,15 @@ export const updateProfileService = async (
   const { name, email, phoneNumber, profileImage, businessName, businessDescription, location } = data;
 
   const hasBusinessFields =
-    businessName !== undefined || businessDescription !== undefined || location !== undefined;
+    (businessName !== undefined && businessName.trim() !== '') ||
+    (businessDescription !== undefined && businessDescription.trim() !== '') ||
+    (location !== undefined && location.trim() !== '');
 
   if (user.role !== 'HOST' && user.role !== 'BUSINESS' && hasBusinessFields) {
     throw new AppError('Regular users cannot update business profile fields', 400);
   }
 
-  if (email && email.toLowerCase().trim() !== user.email) {
+  if (email && email.trim() !== '' && email.toLowerCase().trim() !== user.email) {
     const existingUser = await User.findOne({
       email: email.toLowerCase().trim(),
       _id: { $ne: userId },
@@ -523,7 +525,7 @@ export const updateProfileService = async (
     user.email = email.toLowerCase().trim();
   }
 
-  if (name !== undefined) {
+  if (name !== undefined && name.trim() !== '') {
     user.name = name.trim();
   }
 
