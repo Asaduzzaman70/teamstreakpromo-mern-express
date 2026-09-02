@@ -1,14 +1,24 @@
 import { Schema, model, type Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export type UserRole = 'USER' | 'HOST' | 'BUSINESS';
+
 export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  phoneNumber?: string;
+  profileImage?: string;
+  role: UserRole;
+  totalPoints: number;
+  walletBalance: number;
+  refreshToken?: string;
   isAgeOver18: boolean;
   agreesToTerms: boolean;
   createdAt: Date;
   updatedAt: Date;
+  isActive: Boolean;
+  isSuspend: Boolean;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -30,6 +40,33 @@ const UserSchema = new Schema<IUser>(
       type: String,
       required: [true, 'Password is required'],
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    profileImage: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    role: {
+      type: String,
+      enum: ['USER', 'HOST', 'BUSINESS', 'ADMIN'],
+      default: 'USER',
+    },
+    totalPoints: {
+      type: Number,
+      default: 0,
+    },
+    walletBalance: {
+      type: Number,
+      default: 0,
+    },
+    refreshToken: {
+      type: String,
+      default: '',
+    },
     isAgeOver18: {
       type: Boolean,
       required: [true, 'Age confirmation is required'],
@@ -38,6 +75,14 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       required: [true, 'Terms and conditions agreement is required'],
     },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
+    isSuspend: {
+      type: Boolean,
+      default: false,
+    }
   },
   {
     timestamps: true,
@@ -45,18 +90,13 @@ const UserSchema = new Schema<IUser>(
 );
 
 // Pre-save hook to hash password
-UserSchema.pre('save', async function (this: any, next: any) {
+UserSchema.pre('save', async function (this: IUser) {
   if (!this.isModified('password')) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error as Error);
-  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Compare password method
