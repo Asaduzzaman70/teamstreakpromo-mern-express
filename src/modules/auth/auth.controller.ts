@@ -123,9 +123,10 @@ export const getMe = catchAsync(async (req: AuthenticatedRequest, res: Response)
     throw new AppError('Not authorized', 401);
   }
 
-  const userProfile = await getMeService(req.user.id);
+  const { userProfile, meta } = await getMeService(req.user.id);
   sendResponse(res, {
     statusCode: 200,
+    meta,
     data: userProfile,
   });
 });
