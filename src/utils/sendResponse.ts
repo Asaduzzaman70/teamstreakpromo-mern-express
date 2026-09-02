@@ -5,6 +5,9 @@ export interface IMeta {
   limit?: number;
   total?: number;
   totalPage?: number;
+  totalEvents?: number;
+  totalRating?: number;
+  totalRevenue?: number;
   [key: string]: any;
 }
 

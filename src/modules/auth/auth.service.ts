@@ -2,8 +2,10 @@ import jwt from 'jsonwebtoken';
 import { User } from './auth.model.js';
 import { BusinessProfile } from '../businessProfile/businessProfile.model.js';
 import type { IBusinessProfile } from '../businessProfile/businessProfile.interface.js';
+import { Event } from '../event/event.model.js';
 import config from '../../config/config.js';
 import { AppError } from '../../utils/AppError.js';
+import type { IMeta } from '../../utils/sendResponse.js';
 import { uploadToS3 } from '../../utils/s3.js';
 import { createOtpService, verifyOtpService as verifyOtpFromService } from '../otp/otp.service.js';
 import { sendOtpEmail } from '../../utils/sendEmail.js';
@@ -420,7 +422,7 @@ export const resetPasswordService = async (
 
 export const getMeService = async (
   userId: string
-): Promise<UserProfileResponse> => {
+): Promise<{ userProfile: UserProfileResponse; meta: IMeta }> => {
   const user = await User.findById(userId).select('-password');
   if (!user) {
     throw new AppError('User not found', 404);
@@ -433,7 +435,18 @@ export const getMeService = async (
     userObj.businessProfile = businessProfile ? (businessProfile.toObject() as IBusinessProfile) : null;
   }
 
-  return userObj;
+  const totalEvents = await Event.countDocuments({ hostId: userId });
+
+  const meta: IMeta = {
+    totalEvents,
+    totalRating: 0,
+    totalRevenue: 0,
+  };
+
+  return {
+    userProfile: userObj,
+    meta,
+  };
 };
 
 export const refreshTokenService = async (
@@ -575,7 +588,8 @@ export const updateProfileService = async (
     }
   }
 
-  return getMeService(userId);
+  const { userProfile } = await getMeService(userId);
+  return userProfile;
 };
 
 export const changePasswordService = async (

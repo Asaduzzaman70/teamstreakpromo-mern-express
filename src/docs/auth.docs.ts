@@ -656,6 +656,14 @@ export const authDocs = {
                 properties: {
                   success: { type: 'boolean', example: true },
                   statusCode: { type: 'number', example: 200 },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      totalEvents: { type: 'integer', example: 5 },
+                      totalRating: { type: 'number', example: 0 },
+                      totalRevenue: { type: 'number', example: 0 },
+                    },
+                  },
                   data: {
                     type: 'object',
                     properties: {
