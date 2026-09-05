@@ -6,6 +6,7 @@ import authRoutes from './modules/auth/auth.route.js';
 import categoryRoutes from './modules/category/category.route.js';
 import eventRoutes from './modules/event/event.route.js';
 import employeeRoutes from './modules/employee/employee.route.js';
+import { paymentRoutes } from './modules/payment/payment.route.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
@@ -35,6 +36,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Global error handler (should be after routes)
 app.use(errorHandler);
