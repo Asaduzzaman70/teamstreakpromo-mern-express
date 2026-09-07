@@ -8,6 +8,7 @@ import eventRoutes from './modules/event/event.route.js';
 import employeeRoutes from './modules/employee/employee.route.js';
 import { paymentRoutes } from './modules/payment/payment.route.js';
 import rewardCategoryRoutes from './modules/rewardCategory/rewardCategory.route.js';
+import rewardSubCategoryRoutes from './modules/rewardSubCategory/rewardSubCategory.route.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reward-categories', rewardCategoryRoutes);
+app.use('/api/reward-subcategories', rewardSubCategoryRoutes);
 
 // Global error handler (should be after routes)
 app.use(errorHandler);
