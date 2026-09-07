@@ -8,6 +8,7 @@ import { employeeDocs } from './employee.docs.js';
 import { paymentDocs } from './payment.docs.js';
 import { rewardCategoryDocs } from './rewardCategory.docs.js';
 import { rewardSubCategoryDocs } from './rewardSubCategory.docs.js';
+import { marketplaceDocs } from './marketplace.docs.js';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -45,6 +46,7 @@ const options: swaggerJsdoc.Options = {
       ...paymentDocs,
       ...rewardCategoryDocs,
       ...rewardSubCategoryDocs,
+      ...marketplaceDocs,
     },
   },
   apis: [],
