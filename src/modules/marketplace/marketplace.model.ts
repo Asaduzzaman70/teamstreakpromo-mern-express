@@ -12,6 +12,7 @@ export interface IMarketplace extends Document {
   endDateTime: Date;
   points: number;
   quantity: number;
+  claimQuantity: number;
   photos: string[];
   isActive: boolean;
   createdAt: Date;
@@ -69,6 +70,11 @@ const MarketplaceSchema = new Schema<IMarketplace>(
       type: Number,
       required: [true, 'Reward Quantity is required'],
       min: [0, 'Quantity cannot be negative'],
+    },
+    claimQuantity: {
+      type: Number,
+      default: 0,
+      min: [0, 'Claim quantity cannot be negative'],
     },
     photos: {
       type: [String],

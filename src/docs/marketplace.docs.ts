@@ -164,6 +164,7 @@ export const marketplaceDocs = {
                         endDateTime: { type: 'string', format: 'date-time' },
                         points: { type: 'number', example: 100 },
                         quantity: { type: 'number', example: 10 },
+                        claimQuantity: { type: 'number', example: 0 },
                         photos: { type: 'array', items: { type: 'string' } },
                         isActive: { type: 'boolean', example: true },
                         createdAt: { type: 'string', format: 'date-time' },
