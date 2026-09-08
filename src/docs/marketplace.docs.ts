@@ -88,6 +88,24 @@ export const marketplaceDocs = {
           description: 'Filter marketplaces ending on or before this date. Format: YYYY-MM-DD (e.g. 2026-09-30)',
           schema: { type: 'string', format: 'date', example: '2026-09-30' },
         },
+        {
+          name: 'minPoints',
+          in: 'query',
+          description: 'Filter marketplaces with points greater than or equal to this value',
+          schema: { type: 'integer', example: 10 },
+        },
+        {
+          name: 'maxPoints',
+          in: 'query',
+          description: 'Filter marketplaces with points less than or equal to this value',
+          schema: { type: 'integer', example: 95 },
+        },
+        {
+          name: 'points',
+          in: 'query',
+          description: 'Filter marketplaces by an exact point value (overrides minPoints/maxPoints if provided)',
+          schema: { type: 'integer', example: 25 },
+        },
       ],
       responses: {
         '200': {

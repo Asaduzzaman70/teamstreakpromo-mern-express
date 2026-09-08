@@ -100,6 +100,14 @@ export const getAllMarketplacesService = async (
     filter.endDateTime = { $lte: new Date(query.endDate) };
   }
 
+  if (query.points !== undefined) {
+    filter.points = Number(query.points);
+  } else if (query.minPoints !== undefined || query.maxPoints !== undefined) {
+    filter.points = {};
+    if (query.minPoints !== undefined) filter.points.$gte = Number(query.minPoints);
+    if (query.maxPoints !== undefined) filter.points.$lte = Number(query.maxPoints);
+  }
+
   if (query.isActive !== undefined) {
     if (typeof query.isActive === 'string') {
       filter.isActive = query.isActive === 'true';

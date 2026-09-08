@@ -13,6 +13,9 @@ export interface MarketplaceQuery {
   isActive?: boolean | string;
   startDate?: string;
   endDate?: string;
+  minPoints?: number | string;
+  maxPoints?: number | string;
+  points?: number | string;
   page?: number | string;
   limit?: number | string;
 }
