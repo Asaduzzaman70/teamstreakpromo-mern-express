@@ -97,7 +97,16 @@ export const getAllMarketplacesService = async (
   }
 
   if (query.endDate) {
-    filter.endDateTime = { $lte: new Date(query.endDate) };
+    filter.endDateTime = { ...filter.endDateTime, $lte: new Date(query.endDate) };
+  }
+
+  if (query.isExpired !== undefined) {
+    const isExpired = query.isExpired === 'true' || query.isExpired === true;
+    if (isExpired) {
+      filter.endDateTime = { ...filter.endDateTime, $lt: new Date() };
+    } else {
+      filter.endDateTime = { ...filter.endDateTime, $gte: new Date() };
+    }
   }
 
   if (query.points !== undefined) {

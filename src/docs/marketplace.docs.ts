@@ -106,6 +106,12 @@ export const marketplaceDocs = {
           description: 'Filter marketplaces by an exact point value (overrides minPoints/maxPoints if provided)',
           schema: { type: 'integer', example: 25 },
         },
+        {
+          name: 'isExpired',
+          in: 'query',
+          description: 'Filter marketplaces by expiration status. If true, returns items whose end date has passed. If false, returns active/upcoming items.',
+          schema: { type: 'boolean', example: false },
+        },
       ],
       responses: {
         '200': {
