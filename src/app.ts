@@ -39,10 +39,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/employees', employeeRoutes);
-// app.use('/api/payments', paymentRoutes);
-// app.use('/api/reward-categories', rewardCategoryRoutes);
-// app.use('/api/reward-subcategories', rewardSubCategoryRoutes);
-// app.use('/api/marketplaces', MarketplaceRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/reward-categories', rewardCategoryRoutes);
+app.use('/api/reward-subcategories', rewardSubCategoryRoutes);
+app.use('/api/marketplaces', MarketplaceRoutes);
 
 // Global error handler (should be after routes)
 app.use(errorHandler);
