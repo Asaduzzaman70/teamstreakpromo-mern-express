@@ -7,7 +7,7 @@ export const marketplaceDocs = {
       requestBody: {
         required: true,
         content: {
-          'application/json': {
+          'multipart/form-data': {
             schema: {
               type: 'object',
               required: [
@@ -15,6 +15,8 @@ export const marketplaceDocs = {
                 'description',
                 'categoryId',
                 'location',
+                'latitude',
+                'longitude',
                 'startDateTime',
                 'endDateTime',
                 'points',
@@ -27,11 +29,13 @@ export const marketplaceDocs = {
                 categoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Category ObjectId' },
                 subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345679', description: 'Subcategory ObjectId' },
                 location: { type: 'string', example: 'New York' },
+                latitude: { type: 'number', example: 40.7128 },
+                longitude: { type: 'number', example: -74.0060 },
                 startDateTime: { type: 'string', format: 'date-time' },
                 endDateTime: { type: 'string', format: 'date-time' },
                 points: { type: 'number', example: 100 },
                 quantity: { type: 'number', example: 10 },
-                photos: { type: 'array', items: { type: 'string' }, example: ['photo1.jpg'] },
+                photos: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Upload multiple images' },
                 isActive: { type: 'boolean', example: true },
               },
             },
@@ -118,6 +122,8 @@ export const marketplaceDocs = {
                           }
                         },
                         location: { type: 'string', example: 'New York' },
+                        latitude: { type: 'number', example: 40.7128 },
+                        longitude: { type: 'number', example: -74.0060 },
                         startDateTime: { type: 'string', format: 'date-time' },
                         endDateTime: { type: 'string', format: 'date-time' },
                         points: { type: 'number', example: 100 },
@@ -169,7 +175,7 @@ export const marketplaceDocs = {
       requestBody: {
         required: true,
         content: {
-          'application/json': {
+          'multipart/form-data': {
             schema: {
               type: 'object',
               properties: {
@@ -178,11 +184,13 @@ export const marketplaceDocs = {
                 categoryId: { type: 'string', example: '65c8f1e29a8f3b0012345678', description: 'Category ObjectId' },
                 subCategoryId: { type: 'string', example: '65c8f1e29a8f3b0012345679', description: 'Subcategory ObjectId' },
                 location: { type: 'string', example: 'New York' },
+                latitude: { type: 'number', example: 40.7128 },
+                longitude: { type: 'number', example: -74.0060 },
                 startDateTime: { type: 'string', format: 'date-time' },
                 endDateTime: { type: 'string', format: 'date-time' },
                 points: { type: 'number', example: 100 },
                 quantity: { type: 'number', example: 10 },
-                photos: { type: 'array', items: { type: 'string' }, example: ['photo1.jpg'] },
+                photos: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Upload multiple images (will replace existing)' },
                 isActive: { type: 'boolean', example: true },
               },
             },

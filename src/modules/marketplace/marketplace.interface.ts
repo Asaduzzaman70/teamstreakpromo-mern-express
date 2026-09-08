@@ -8,6 +8,8 @@ export interface MarketplaceQuery {
   search?: string;
   categoryId?: string;
   subCategoryId?: string;
+  latitude?: number | string;
+  longitude?: number | string;
   isActive?: boolean | string;
   page?: number | string;
   limit?: number | string;
@@ -20,6 +22,8 @@ export interface IMarketplaceResponse {
   category: unknown;
   subCategory: unknown;
   location: string;
+  latitude: number;
+  longitude: number;
   startDateTime: Date;
   endDateTime: Date;
   points: number;

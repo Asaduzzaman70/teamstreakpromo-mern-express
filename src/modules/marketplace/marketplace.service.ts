@@ -2,10 +2,14 @@ import { Marketplace, type IMarketplace } from './marketplace.model.js';
 import { RewardCategory } from '../rewardCategory/rewardCategory.model.js';
 import { RewardSubCategory } from '../rewardSubCategory/rewardSubCategory.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateMarketplaceInput, UpdateMarketplaceInput, MarketplaceQuery } from './marketplace.interface.js';
 
-export const createMarketplaceService = async (data: CreateMarketplaceInput): Promise<IMarketplace> => {
+export const createMarketplaceService = async (
+  data: CreateMarketplaceInput,
+  files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[]
+): Promise<IMarketplace> => {
   const categoryExists = await RewardCategory.findById(data.categoryId);
   if (!categoryExists) {
     throw new AppError('Reward Category not found', 404);
@@ -23,17 +27,44 @@ export const createMarketplaceService = async (data: CreateMarketplaceInput): Pr
     }
   }
 
+  const marketplaceImageFiles: Express.Multer.File[] = [];
+  if (files) {
+    let allFiles: Express.Multer.File[] = [];
+    if (Array.isArray(files)) {
+      allFiles = files;
+    } else {
+      allFiles = Object.values(files).flat();
+    }
+    marketplaceImageFiles.push(
+      ...allFiles.filter((f) => f.fieldname === 'photos' || f.fieldname === 'marketplaceImages' || f.fieldname.startsWith('photo'))
+    );
+  }
+
+  const finalPhotos: string[] = Array.isArray(data.photos) ? [...data.photos] : [];
+  if (marketplaceImageFiles.length > 0) {
+    for (const file of marketplaceImageFiles) {
+      const s3Url = await uploadToS3(file, 'marketplaces');
+      finalPhotos.push(s3Url);
+    }
+  }
+
+  if (finalPhotos.length === 0) {
+    throw new AppError('At least one photo is required for the marketplace item', 400);
+  }
+
   const marketplaceItem = new Marketplace({
     title: data.title,
     description: data.description,
     category: data.categoryId as any,
     subCategory: data.subCategoryId as any,
     location: data.location,
+    latitude: data.latitude,
+    longitude: data.longitude,
     startDateTime: new Date(data.startDateTime),
     endDateTime: new Date(data.endDateTime),
     points: data.points,
     quantity: data.quantity,
-    photos: data.photos,
+    photos: finalPhotos,
     isActive: data.isActive !== undefined ? data.isActive : true,
   });
 
@@ -110,7 +141,8 @@ export const getMarketplaceByIdService = async (id: string): Promise<IMarketplac
 
 export const updateMarketplaceService = async (
   id: string,
-  data: UpdateMarketplaceInput
+  data: UpdateMarketplaceInput,
+  files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[]
 ): Promise<IMarketplace> => {
   const marketplaceItem = await Marketplace.findById(id);
   if (!marketplaceItem) {
@@ -139,19 +171,53 @@ export const updateMarketplaceService = async (
     }
   }
 
+  const oldPhotos = marketplaceItem.photos || [];
+  const marketplaceImageFiles: Express.Multer.File[] = [];
+
+  if (files) {
+    let allFiles: Express.Multer.File[] = [];
+    if (Array.isArray(files)) {
+      allFiles = files;
+    } else {
+      allFiles = Object.values(files).flat();
+    }
+    marketplaceImageFiles.push(
+      ...allFiles.filter((f) => f.fieldname === 'photos' || f.fieldname === 'marketplaceImages' || f.fieldname.startsWith('photo'))
+    );
+  }
+
+  let finalPhotos: string[] = data.photos !== undefined ? [...data.photos] : [...oldPhotos];
+  if (marketplaceImageFiles.length > 0) {
+    for (const file of marketplaceImageFiles) {
+      const s3Url = await uploadToS3(file, 'marketplaces');
+      finalPhotos.push(s3Url);
+    }
+  }
+
   if (data.title) marketplaceItem.title = data.title;
   if (data.description !== undefined) marketplaceItem.description = data.description;
   if (data.categoryId) marketplaceItem.category = data.categoryId as any;
   if (data.subCategoryId) marketplaceItem.subCategory = data.subCategoryId as any;
   if (data.location !== undefined) marketplaceItem.location = data.location;
+  if (data.latitude !== undefined) marketplaceItem.latitude = data.latitude as number;
+  if (data.longitude !== undefined) marketplaceItem.longitude = data.longitude as number;
   if (data.startDateTime) marketplaceItem.startDateTime = new Date(data.startDateTime);
   if (data.endDateTime) marketplaceItem.endDateTime = new Date(data.endDateTime);
   if (data.points !== undefined) marketplaceItem.points = data.points;
   if (data.quantity !== undefined) marketplaceItem.quantity = data.quantity;
-  if (data.photos && data.photos.length > 0) marketplaceItem.photos = data.photos;
+  if (finalPhotos.length > 0) marketplaceItem.photos = finalPhotos;
   if (data.isActive !== undefined) marketplaceItem.isActive = data.isActive;
 
   await marketplaceItem.save();
+
+  // Delete removed images from S3
+  const newPhotosSet = new Set(marketplaceItem.photos || []);
+  for (const oldUrl of oldPhotos) {
+    if (!newPhotosSet.has(oldUrl)) {
+      await deleteFromS3(oldUrl);
+    }
+  }
+
   return marketplaceItem.populate([
     { path: 'category', select: 'name description' },
     { path: 'subCategory', select: 'name description' },
@@ -164,6 +230,12 @@ export const deleteMarketplaceService = async (id: string): Promise<{ message: s
     throw new AppError('Marketplace item not found', 404);
   }
 
+  const oldPhotos = marketplaceItem.photos || [];
   await Marketplace.findByIdAndDelete(id);
+
+  for (const imgUrl of oldPhotos) {
+    await deleteFromS3(imgUrl);
+  }
+
   return { message: 'Marketplace item deleted successfully' };
 };

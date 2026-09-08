@@ -13,7 +13,8 @@ import {
 // @route   POST /api/marketplace
 // @access  Private
 export const createMarketplace = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const result = await createMarketplaceService(req.body);
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[] | undefined;
+  const result = await createMarketplaceService(req.body, files);
   sendResponse(res, {
     statusCode: 201,
     message: 'Marketplace item created successfully',
@@ -50,7 +51,8 @@ export const getMarketplaceById = catchAsync(async (req: Request, res: Response)
 // @route   PATCH /api/marketplace/:id
 // @access  Private
 export const updateMarketplace = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  const result = await updateMarketplaceService(req.params.id as string, req.body);
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[] | undefined;
+  const result = await updateMarketplaceService(req.params.id as string, req.body, files);
   sendResponse(res, {
     statusCode: 200,
     message: 'Marketplace item updated successfully',

@@ -6,6 +6,8 @@ export interface IMarketplace extends Document {
   category: Schema.Types.ObjectId;
   subCategory?: Schema.Types.ObjectId;
   location: string;
+  latitude: number;
+  longitude: number;
   startDateTime: Date;
   endDateTime: Date;
   points: number;
@@ -41,6 +43,14 @@ const MarketplaceSchema = new Schema<IMarketplace>(
       type: String,
       required: [true, 'Location is required'],
       trim: true,
+    },
+    latitude: {
+      type: Number,
+      required: [true, 'Latitude is required'],
+    },
+    longitude: {
+      type: Number,
+      required: [true, 'Longitude is required'],
     },
     startDateTime: {
       type: Date,
