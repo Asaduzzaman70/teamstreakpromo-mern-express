@@ -76,6 +76,18 @@ export const marketplaceDocs = {
           description: 'Filter by subcategory ID',
           schema: { type: 'string' },
         },
+        {
+          name: 'startDate',
+          in: 'query',
+          description: 'Filter marketplaces starting on or after this date. Format: YYYY-MM-DD (e.g. 2026-09-01)',
+          schema: { type: 'string', format: 'date', example: '2026-09-01' },
+        },
+        {
+          name: 'endDate',
+          in: 'query',
+          description: 'Filter marketplaces ending on or before this date. Format: YYYY-MM-DD (e.g. 2026-09-30)',
+          schema: { type: 'string', format: 'date', example: '2026-09-30' },
+        },
       ],
       responses: {
         '200': {

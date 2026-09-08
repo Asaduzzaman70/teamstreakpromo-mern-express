@@ -11,6 +11,8 @@ export interface MarketplaceQuery {
   latitude?: number | string;
   longitude?: number | string;
   isActive?: boolean | string;
+  startDate?: string;
+  endDate?: string;
   page?: number | string;
   limit?: number | string;
 }

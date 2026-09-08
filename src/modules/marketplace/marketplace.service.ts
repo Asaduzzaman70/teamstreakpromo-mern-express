@@ -92,6 +92,14 @@ export const getAllMarketplacesService = async (
     filter.subCategory = query.subCategoryId as any;
   }
 
+  if (query.startDate) {
+    filter.startDateTime = { $gte: new Date(query.startDate) };
+  }
+
+  if (query.endDate) {
+    filter.endDateTime = { $lte: new Date(query.endDate) };
+  }
+
   if (query.isActive !== undefined) {
     if (typeof query.isActive === 'string') {
       filter.isActive = query.isActive === 'true';
