@@ -162,6 +162,17 @@ export const marketplaceDocs = {
     },
     patch: {
       summary: 'Update marketplace item by ID',
+      description: `Update an existing marketplace item by ID (supports multipart/form-data).
+
+### Frontend Image Update Instructions:
+- **To keep existing photos**: Send existing image URL string(s) in form-data text fields (e.g. \`photos\`: \`"https://example.com/photo1.jpg"\`). Or send a JSON array string \`["url1", "url2"]\`.
+- **To add new image files**: Attach binary image file(s) to form-data field \`photos\`.
+- **To delete an image**: Omit that image URL string from the form-data fields.
+- **To delete ALL images**: Send an empty JSON array string \`"[]"\` to the \`photos\` field.
+
+#### Sample Form-Data Field Inputs:
+- **Text Field \`photos\`**: \`"https://example.com/existing_photo.jpg"\`
+- **File Field \`photos\`**: \`[Binary Image File]\``,
       tags: ['Marketplace'],
       security: [{ bearerAuth: [] }],
       parameters: [
