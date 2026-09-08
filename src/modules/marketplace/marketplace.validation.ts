@@ -8,11 +8,12 @@ export const createMarketplaceSchema = z.object({
       message: 'Reward Description is required',
     }),
     categoryId: z.string({
-      message: 'Reward Category ID is required',
-    }),
-    subCategoryId: z.string({
-      message: 'Reward Subcategory ID is required',
-    }).optional(),
+      message: 'Category ID is required',
+    }).trim().min(1, 'Category ID cannot be empty'),
+    subCategoryId: z.preprocess(
+      (val) => (val === '' ? undefined : val),
+      z.string().optional()
+    ),
     location: z.string({
       message: 'Location is required',
     }),
@@ -62,10 +63,13 @@ export const createMarketplaceSchema = z.object({
 });
 
 export const updateMarketplaceSchema = z.object({
-    title: z.string().min(1, 'Reward Title cannot be empty').optional(),
-    description: z.string().optional(),
+    title: z.string().trim().min(1, 'Title cannot be empty').optional(),
+    description: z.string().trim().min(1, 'Description cannot be empty').optional(),
     categoryId: z.string().optional(),
-    subCategoryId: z.string().optional(),
+    subCategoryId: z.preprocess(
+      (val) => (val === '' ? undefined : val),
+      z.string().optional()
+    ),
     location: z.string().optional(),
     latitude: z.preprocess(
       (val) => (typeof val === 'string' ? parseFloat(val) : val),

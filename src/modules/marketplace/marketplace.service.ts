@@ -56,7 +56,7 @@ export const createMarketplaceService = async (
     title: data.title,
     description: data.description,
     category: data.categoryId as any,
-    subCategory: data.subCategoryId as any,
+    subCategory: data.subCategoryId ? data.subCategoryId as any : undefined,
     location: data.location,
     latitude: data.latitude,
     longitude: data.longitude,
