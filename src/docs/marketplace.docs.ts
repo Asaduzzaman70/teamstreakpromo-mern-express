@@ -146,13 +146,15 @@ export const marketplaceDocs = {
                       type: 'object',
                       properties: {
                         _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
-                        businessOwnerId: {
+                        businessProfile: {
                           type: 'object',
                           properties: {
-                            _id: { type: 'string', example: '65c8f1e29a8f3b0012345677' },
-                            name: { type: 'string', example: 'Business Owner' },
-                            email: { type: 'string', example: 'business@example.com' },
-                            role: { type: 'string', example: 'BUSINESS' },
+                            rating: { type: 'number', example: 0, description: 'Total business rating' },
+                            sold: { type: 'number', example: 0, description: 'Total items sold by business' },
+                            businessName: { type: 'string', example: 'Apex Rewards LLC' },
+                            businessDescription: { type: 'string', example: 'Premium rewards and promotion partner.' },
+                            location: { type: 'string', example: 'New York, USA' },
+                            profileImage: { type: 'string', example: 'https://example.com/logo.jpg' },
                           },
                         },
                         title: { type: 'string', example: 'Example Reward' },

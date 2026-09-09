@@ -12,6 +12,8 @@ export interface IUser extends Document {
   role: UserRole;
   totalPoints: number;
   walletBalance: number;
+  rating: number;
+  sold: number;
   refreshToken?: string;
   isAgeOver18: boolean;
   agreesToTerms: boolean;
@@ -63,6 +65,17 @@ const UserSchema = new Schema<IUser>(
       type: Number,
       default: 0,
     },
+    rating: {
+      type: Number,
+      default: 0,
+      min: [0, 'Rating cannot be negative'],
+      max: [5, 'Rating cannot exceed 5'],
+    },
+    sold: {
+      type: Number,
+      default: 0,
+      min: [0, 'Sold count cannot be negative'],
+    },
     refreshToken: {
       type: String,
       default: '',
@@ -88,6 +101,17 @@ const UserSchema = new Schema<IUser>(
     timestamps: true,
   }
 );
+
+// Virtual field to populate BusinessProfile
+UserSchema.virtual('businessProfile', {
+  ref: 'BusinessProfile',
+  localField: '_id',
+  foreignField: 'userId',
+  justOne: true,
+});
+
+UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toObject', { virtuals: true });
 
 // Pre-save hook to hash password
 UserSchema.pre('save', async function (this: IUser) {

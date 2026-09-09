@@ -14,8 +14,6 @@ export interface IMarketplace extends Document {
   points: number;
   quantity: number;
   claimQuantity: number;
-  rating: number;
-  sold: number;
   photos: string[];
   isActive: boolean;
   createdAt: Date;
@@ -83,17 +81,6 @@ const MarketplaceSchema = new Schema<IMarketplace>(
       type: Number,
       default: 0,
       min: [0, 'Claim quantity cannot be negative'],
-    },
-    rating: {
-      type: Number,
-      default: 0,
-      min: [0, 'Rating cannot be negative'],
-      max: [5, 'Rating cannot exceed 5'],
-    },
-    sold: {
-      type: Number,
-      default: 0,
-      min: [0, 'Sold count cannot be negative'],
     },
     photos: {
       type: [String],

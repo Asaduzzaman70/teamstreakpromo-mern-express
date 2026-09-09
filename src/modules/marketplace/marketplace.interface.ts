@@ -24,7 +24,14 @@ export interface MarketplaceQuery {
 
 export interface IMarketplaceResponse {
   _id: unknown;
-  businessOwnerId: unknown;
+  businessProfile: {
+    rating: number;
+    sold: number;
+    businessName: string;
+    businessDescription: string;
+    location: string;
+    profileImage: string;
+  };
   title: string;
   description: string;
   category: unknown;
@@ -37,8 +44,6 @@ export interface IMarketplaceResponse {
   points: number;
   quantity: number;
   claimQuantity: number;
-  rating: number;
-  sold: number;
   photos: string[];
   isActive: boolean;
   createdAt: Date;

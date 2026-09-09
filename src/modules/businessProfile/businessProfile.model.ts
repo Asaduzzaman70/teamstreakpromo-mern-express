@@ -54,6 +54,17 @@ const BusinessProfileSchema = new Schema<IBusinessProfile>(
       enum: ['PENDING', 'APPROVED', 'REJECTED'],
       default: 'PENDING',
     },
+    rating: {
+      type: Number,
+      default: 0,
+      min: [0, 'Rating cannot be negative'],
+      max: [5, 'Rating cannot exceed 5'],
+    },
+    sold: {
+      type: Number,
+      default: 0,
+      min: [0, 'Sold count cannot be negative'],
+    },
     submittedAt: {
       type: Date,
       default: Date.now,

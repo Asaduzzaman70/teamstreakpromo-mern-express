@@ -17,6 +17,8 @@ export interface IBusinessProfile extends Document {
   businessLicenseFrontImage?: string;
   businessLicenseBackImage?: string;
   verificationStatus: VerificationStatus;
+  rating: number;
+  sold: number;
   submittedAt: Date;
   verifiedAt?: Date | null;
   createdAt: Date;
