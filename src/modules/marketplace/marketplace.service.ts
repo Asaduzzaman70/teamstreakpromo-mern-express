@@ -66,6 +66,8 @@ export const createMarketplaceService = async (
     endDateTime: new Date(data.endDateTime),
     points: data.points,
     quantity: data.quantity,
+    rating: 0,
+    sold: 0,
     photos: finalPhotos,
     isActive: data.isActive !== undefined ? data.isActive : true,
   });

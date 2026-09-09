@@ -181,6 +181,8 @@ export const marketplaceDocs = {
                         points: { type: 'number', example: 100 },
                         quantity: { type: 'number', example: 10 },
                         claimQuantity: { type: 'number', example: 0 },
+                        rating: { type: 'number', example: 4.9 },
+                        sold: { type: 'number', example: 7932 },
                         photos: { type: 'array', items: { type: 'string' } },
                         isActive: { type: 'boolean', example: true },
                         createdAt: { type: 'string', format: 'date-time' },

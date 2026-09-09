@@ -37,6 +37,8 @@ export interface IMarketplaceResponse {
   points: number;
   quantity: number;
   claimQuantity: number;
+  rating: number;
+  sold: number;
   photos: string[];
   isActive: boolean;
   createdAt: Date;
