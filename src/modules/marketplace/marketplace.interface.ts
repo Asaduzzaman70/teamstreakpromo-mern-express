@@ -6,6 +6,7 @@ export type UpdateMarketplaceInput = z.infer<typeof updateMarketplaceSchema>;
 
 export interface MarketplaceQuery {
   search?: string;
+  businessOwnerId?: string;
   categoryId?: string;
   subCategoryId?: string;
   latitude?: number | string;
@@ -23,6 +24,7 @@ export interface MarketplaceQuery {
 
 export interface IMarketplaceResponse {
   _id: unknown;
+  businessOwnerId: unknown;
   title: string;
   description: string;
   category: unknown;
@@ -35,6 +37,8 @@ export interface IMarketplaceResponse {
   points: number;
   quantity: number;
   claimQuantity: number;
+  rating: number;
+  sold: number;
   photos: string[];
   isActive: boolean;
   createdAt: Date;

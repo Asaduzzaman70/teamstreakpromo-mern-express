@@ -7,6 +7,7 @@ import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateMarketplaceInput, UpdateMarketplaceInput, MarketplaceQuery } from './marketplace.interface.js';
 
 export const createMarketplaceService = async (
+  businessOwnerId: string,
   data: CreateMarketplaceInput,
   files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[]
 ): Promise<IMarketplace> => {
@@ -53,6 +54,7 @@ export const createMarketplaceService = async (
   }
 
   const marketplaceItem = new Marketplace({
+    businessOwnerId: businessOwnerId as any,
     title: data.title,
     description: data.description,
     category: data.categoryId as any,
@@ -64,12 +66,15 @@ export const createMarketplaceService = async (
     endDateTime: new Date(data.endDateTime),
     points: data.points,
     quantity: data.quantity,
+    rating: 0,
+    sold: 0,
     photos: finalPhotos,
     isActive: data.isActive !== undefined ? data.isActive : true,
   });
 
   await marketplaceItem.save();
   return marketplaceItem.populate([
+    { path: 'businessOwnerId', select: 'name email phoneNumber profileImage role' },
     { path: 'category', select: 'name description' },
     { path: 'subCategory', select: 'name description' },
   ]);
@@ -82,6 +87,10 @@ export const getAllMarketplacesService = async (
 
   if (query.search) {
     filter.title = { $regex: query.search, $options: 'i' };
+  }
+
+  if (query.businessOwnerId) {
+    filter.businessOwnerId = query.businessOwnerId as any;
   }
 
   if (query.categoryId) {
@@ -134,6 +143,7 @@ export const getAllMarketplacesService = async (
 
   const marketplaces = await Marketplace.find(filter)
     .populate([
+      { path: 'businessOwnerId', select: 'name email phoneNumber profileImage role' },
       { path: 'category', select: 'name description' },
       { path: 'subCategory', select: 'name description' },
     ])
@@ -154,6 +164,7 @@ export const getAllMarketplacesService = async (
 
 export const getMarketplaceByIdService = async (id: string): Promise<IMarketplace> => {
   const marketplaceItem = await Marketplace.findById(id).populate([
+    { path: 'businessOwnerId', select: 'name email phoneNumber profileImage role' },
     { path: 'category', select: 'name description' },
     { path: 'subCategory', select: 'name description' },
   ]);
@@ -244,6 +255,7 @@ export const updateMarketplaceService = async (
   }
 
   return marketplaceItem.populate([
+    { path: 'businessOwnerId', select: 'name email phoneNumber profileImage role' },
     { path: 'category', select: 'name description' },
     { path: 'subCategory', select: 'name description' },
   ]);

@@ -9,14 +9,35 @@ import {
 import { createMarketplaceSchema, updateMarketplaceSchema } from './marketplace.validation.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
 import { uploadAny } from '../../middlewares/multer.middleware.js';
+import { protect, authorizeRoles } from '../../middlewares/authMiddleware.js';
 
 const router = Router();
 const marketplaceUploadFields = uploadAny();
 
-router.post('/', marketplaceUploadFields, validateRequest(createMarketplaceSchema), createMarketplace);
+router.post(
+  '/',
+  protect,
+  authorizeRoles('BUSINESS'),
+  marketplaceUploadFields,
+  validateRequest(createMarketplaceSchema),
+  createMarketplace
+);
 router.get('/', getAllMarketplaces);
 router.get('/:id', getMarketplaceById);
-router.patch('/:id', marketplaceUploadFields, validateRequest(updateMarketplaceSchema), updateMarketplace);
-router.delete('/:id', deleteMarketplace);
+router.patch(
+  '/:id',
+  protect,
+  authorizeRoles('BUSINESS'),
+  marketplaceUploadFields,
+  validateRequest(updateMarketplaceSchema),
+  updateMarketplace
+);
+router.delete(
+  '/:id',
+  protect,
+  authorizeRoles('BUSINESS'),
+  deleteMarketplace
+);
 
 export const MarketplaceRoutes = router;
+

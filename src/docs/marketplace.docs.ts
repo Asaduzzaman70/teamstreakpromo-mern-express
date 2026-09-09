@@ -1,7 +1,7 @@
 export const marketplaceDocs = {
   '/api/marketplaces': {
     post: {
-      summary: 'Create a new marketplace item',
+      summary: 'Create a new marketplace item (Business only)',
       tags: ['Marketplace'],
       security: [{ bearerAuth: [] }],
       requestBody: {
@@ -46,6 +46,7 @@ export const marketplaceDocs = {
         '201': { description: 'Marketplace item created successfully' },
         '400': { description: 'Validation error' },
         '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden - Only BUSINESS owner can create marketplace items' },
       },
     },
     get: {
@@ -63,6 +64,12 @@ export const marketplaceDocs = {
           in: 'query',
           description: 'Number of items per page (default: 10)',
           schema: { type: 'integer', default: 10 },
+        },
+        {
+          name: 'businessOwnerId',
+          in: 'query',
+          description: 'Filter by business owner User ID',
+          schema: { type: 'string' },
         },
         {
           name: 'categoryId',
@@ -139,6 +146,15 @@ export const marketplaceDocs = {
                       type: 'object',
                       properties: {
                         _id: { type: 'string', example: '65c8f1e29a8f3b0012345678' },
+                        businessOwnerId: {
+                          type: 'object',
+                          properties: {
+                            _id: { type: 'string', example: '65c8f1e29a8f3b0012345677' },
+                            name: { type: 'string', example: 'Business Owner' },
+                            email: { type: 'string', example: 'business@example.com' },
+                            role: { type: 'string', example: 'BUSINESS' },
+                          },
+                        },
                         title: { type: 'string', example: 'Example Reward' },
                         description: { type: 'string', example: 'This is a description' },
                         category: {
@@ -165,6 +181,8 @@ export const marketplaceDocs = {
                         points: { type: 'number', example: 100 },
                         quantity: { type: 'number', example: 10 },
                         claimQuantity: { type: 'number', example: 0 },
+                        rating: { type: 'number', example: 4.9 },
+                        sold: { type: 'number', example: 7932 },
                         photos: { type: 'array', items: { type: 'string' } },
                         isActive: { type: 'boolean', example: true },
                         createdAt: { type: 'string', format: 'date-time' },
@@ -198,7 +216,7 @@ export const marketplaceDocs = {
       },
     },
     patch: {
-      summary: 'Update marketplace item by ID',
+      summary: 'Update marketplace item by ID (Business only)',
       description: `Update an existing marketplace item by ID (supports multipart/form-data).
 
 ### Frontend Image Update Instructions:
@@ -248,11 +266,13 @@ export const marketplaceDocs = {
       responses: {
         '200': { description: 'Marketplace item updated successfully' },
         '400': { description: 'Validation error' },
+        '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden - Only BUSINESS owner can update marketplace items' },
         '404': { description: 'Marketplace item not found' },
       },
     },
     delete: {
-      summary: 'Delete marketplace item by ID',
+      summary: 'Delete marketplace item by ID (Business only)',
       tags: ['Marketplace'],
       security: [{ bearerAuth: [] }],
       parameters: [
@@ -265,6 +285,8 @@ export const marketplaceDocs = {
       ],
       responses: {
         '200': { description: 'Marketplace item deleted successfully' },
+        '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden - Only BUSINESS owner can delete marketplace items' },
         '404': { description: 'Marketplace item not found' },
       },
     },
