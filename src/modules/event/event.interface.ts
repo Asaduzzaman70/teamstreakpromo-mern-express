@@ -9,8 +9,17 @@ export interface IArtistInfo {
   socialMediaLinks?: Record<string, string>;
 }
 
+export interface IPriceCategory {
+  _id?: Types.ObjectId | string;
+  id?: string;
+  name: string;
+  price: number;
+  stock: number;
+}
+
 export interface IReward {
-  _id?: Types.ObjectId;
+  _id?: Types.ObjectId | string;
+  id?: string;
   title: string;
   description?: string;
   pointsRequired: number;
@@ -31,6 +40,7 @@ export interface IEvent extends Document {
   endDate: Date;
   ticketPrice: number;
   stock: number;
+  priceCategories: IPriceCategory[];
   images: string[];
   artistInfo: IArtistInfo[];
   rewards: IReward[];
