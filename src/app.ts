@@ -10,6 +10,7 @@ import { paymentRoutes } from './modules/payment/payment.route.js';
 import rewardCategoryRoutes from './modules/rewardCategory/rewardCategory.route.js';
 import rewardSubCategoryRoutes from './modules/rewardSubCategory/rewardSubCategory.route.js';
 import { MarketplaceRoutes } from './modules/marketplace/marketplace.route.js';
+import { orderRoutes } from './modules/order/order.route.js';
 import { setupSwagger } from './docs/swagger.js';
 
 const app = express();
@@ -43,6 +44,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reward-categories', rewardCategoryRoutes);
 app.use('/api/reward-subcategories', rewardSubCategoryRoutes);
 app.use('/api/marketplaces', MarketplaceRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Global error handler (should be after routes)
 app.use(errorHandler);
