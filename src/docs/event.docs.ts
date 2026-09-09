@@ -23,6 +23,7 @@ export const eventDocs = {
                 endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
                 ticketPrice: { type: 'number', example: 49.99 },
                 stock: { type: 'integer', example: 100 },
+                priceCategories: { type: 'string', example: '[{"name":"VIP","stock":20,"price":200},{"name":"General","stock":80,"price":50}]', description: 'JSON array string of price categories (up to 10 max). Each has name, stock, and price.' },
                 images: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Event main image files upload' },
                 artistImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Artist profile image files upload (mapped 1-to-1 with artistInfo index)' },
                 rewardImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Reward image files upload (all rewards)' },
@@ -49,6 +50,19 @@ export const eventDocs = {
                 endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
                 ticketPrice: { type: 'number', example: 49.99 },
                 stock: { type: 'integer', example: 100 },
+                priceCategories: {
+                  type: 'array',
+                  description: 'Up to 10 price categories',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      _id: { type: 'string', example: '65c8f1e29a8f3b0012345679' },
+                      name: { type: 'string', example: 'VIP' },
+                      stock: { type: 'integer', example: 20 },
+                      price: { type: 'number', example: 200 },
+                    },
+                  },
+                },
                 images: { type: 'array', items: { type: 'string' } },
                 artistInfo: {
                   type: 'array',
@@ -74,6 +88,7 @@ export const eventDocs = {
                   items: {
                     type: 'object',
                     properties: {
+                      _id: { type: 'string', example: '65c8f1e29a8f3b001234567a' },
                       title: { type: 'string', example: 'VIP Pass Badge' },
                       description: { type: 'string', example: 'Free VIP area access badge' },
                       pointsRequired: { type: 'integer', example: 150 },

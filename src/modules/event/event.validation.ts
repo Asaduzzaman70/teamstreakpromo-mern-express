@@ -49,7 +49,23 @@ const artistInfoSchema = z.object({
     .transform((val) => val ?? {}),
 });
 
+const priceCategorySchema = z.object({
+  _id: z.string().optional(),
+  id: z.string().optional(),
+  name: z.string({ message: 'Price category name is required' }).trim().min(1, 'Price category name is required'),
+  price: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ message: 'Price must be a number' }).min(0, 'Price cannot be negative')
+  ),
+  stock: z.preprocess(
+    (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
+    z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative')
+  ),
+});
+
 const rewardSchema = z.object({
+  _id: z.string().optional(),
+  id: z.string().optional(),
   title: z.string({ message: 'Reward title is required' }).trim().min(1, 'Reward title is required'),
   description: z.string().trim().optional(),
   pointsRequired: z.preprocess(
@@ -123,6 +139,21 @@ export const createEventSchema = z
         z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative').optional()
       )
       .transform((val) => val ?? 0),
+    priceCategories: z
+      .preprocess(
+        (val) => {
+          if (typeof val === 'string') {
+            try {
+              return JSON.parse(val);
+            } catch {
+              return val;
+            }
+          }
+          return val;
+        },
+        z.array(priceCategorySchema).max(10, 'Cannot add more than 10 price categories').optional()
+      )
+      .transform((val) => val ?? []),
     images: z
       .preprocess(
         (val) => {
@@ -232,6 +263,21 @@ export const updateEventSchema = z
       .preprocess(
         (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
         z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative')
+      )
+      .optional(),
+    priceCategories: z
+      .preprocess(
+        (val) => {
+          if (typeof val === 'string') {
+            try {
+              return JSON.parse(val);
+            } catch {
+              return val;
+            }
+          }
+          return val;
+        },
+        z.array(priceCategorySchema).max(10, 'Cannot add more than 10 price categories').optional()
       )
       .optional(),
     images: z

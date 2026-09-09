@@ -11,6 +11,15 @@ const ArtistInfoSchema = new Schema(
   { _id: false }
 );
 
+const PriceCategorySchema = new Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    price: { type: Number, required: true, min: [0, 'Price cannot be negative'], default: 0 },
+    stock: { type: Number, required: true, min: [0, 'Stock cannot be negative'], default: 0 },
+  },
+  { timestamps: true }
+);
+
 const RewardSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -74,14 +83,20 @@ const EventSchema = new Schema<IEvent>(
     },
     ticketPrice: {
       type: Number,
-      required: [true, 'Ticket price is required'],
       default: 0,
     },
     stock: {
       type: Number,
-      required: [true, 'Stock is required'],
       min: [0, 'Stock cannot be negative'],
       default: 0,
+    },
+    priceCategories: {
+      type: [PriceCategorySchema],
+      default: [],
+      validate: [
+        (val: any[]) => !val || val.length <= 10,
+        'Cannot have more than 10 price categories',
+      ],
     },
     images: {
       type: [String],
