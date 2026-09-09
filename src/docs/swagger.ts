@@ -95,7 +95,8 @@ export const setupSwagger = (app: Express): void => {
                 SwaggerUIBundle.plugins.DownloadUrl
               ],
               layout: "StandaloneLayout",
-              defaultModelsExpandDepth: -1
+              defaultModelsExpandDepth: -1,
+              docExpansion: "none"
             });
             window.ui = ui;
           };
