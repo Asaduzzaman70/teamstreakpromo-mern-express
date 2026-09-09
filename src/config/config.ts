@@ -22,6 +22,7 @@ interface Config {
   awsSecretAccessKey: string;
   awsRegion: string;
   awsS3BucketName: string;
+  stripeSecretKey: string;
 }
 
 const config: Config = {
@@ -44,6 +45,7 @@ const config: Config = {
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   awsRegion: process.env.AWS_REGION || 'us-east-1',
   awsS3BucketName: process.env.AWS_S3_BUCKET_NAME || 'teamstreakpromo-bucket',
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
 };
 
 export default config;

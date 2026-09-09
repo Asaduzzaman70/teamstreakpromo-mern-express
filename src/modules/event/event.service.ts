@@ -168,6 +168,7 @@ export const createEventService = async (
       }
 
       return {
+        ...(reward._id || reward.id ? { _id: reward._id || reward.id } : {}),
         title: reward.title,
         ...(reward.description ? { description: reward.description } : {}),
         pointsRequired: reward.pointsRequired,
@@ -177,12 +178,31 @@ export const createEventService = async (
     })
   );
 
+  // 4. Process Price Categories
+  const processedPriceCategories = (data.priceCategories || []).map((cat) => ({
+    ...(cat._id || cat.id ? { _id: cat._id || cat.id } : {}),
+    name: cat.name,
+    price: cat.price,
+    stock: cat.stock,
+  }));
+
+  let calculatedStock = data.stock ?? 0;
+  let calculatedTicketPrice = data.ticketPrice ?? 0;
+
+  if (processedPriceCategories.length > 0) {
+    calculatedStock = processedPriceCategories.reduce((sum, cat) => sum + (cat.stock || 0), 0);
+    calculatedTicketPrice = Math.min(...processedPriceCategories.map((cat) => cat.price || 0));
+  }
+
   const { subCategoryId, categoryId, ...eventPayload } = data;
 
   const event = await Event.create({
     ...eventPayload,
     categoryId: subCategory._id,
     hostId,
+    ticketPrice: calculatedTicketPrice,
+    stock: calculatedStock,
+    priceCategories: processedPriceCategories,
     images: eventImages,
     artistInfo: processedArtistInfo,
     rewards: processedRewards,
@@ -328,7 +348,10 @@ export const updateEventService = async (
           throw new AppError(`A picture is required for reward: "${reward.title}"`, 400);
         }
 
+        const rewardId = reward._id || reward.id || oldEvent.rewards?.[index]?._id;
+
         return {
+          ...(rewardId ? { _id: rewardId } : {}),
           title: reward.title,
           ...(reward.description ? { description: reward.description } : {}),
           pointsRequired: reward.pointsRequired,
@@ -339,12 +362,33 @@ export const updateEventService = async (
     );
   }
 
+  // 4. Process Price Categories
+  let finalPriceCategories: any = oldEvent.priceCategories || [];
+  if (data.priceCategories !== undefined) {
+    finalPriceCategories = (data.priceCategories || []).map((cat) => ({
+      ...(cat._id || cat.id ? { _id: cat._id || cat.id } : {}),
+      name: cat.name,
+      price: cat.price,
+      stock: cat.stock,
+    }));
+  }
+
+  let finalStock = data.stock !== undefined ? data.stock : oldEvent.stock;
+  let finalTicketPrice = data.ticketPrice !== undefined ? data.ticketPrice : oldEvent.ticketPrice;
+
+  if (data.priceCategories !== undefined && finalPriceCategories.length > 0) {
+    finalStock = finalPriceCategories.reduce((sum: number, cat: any) => sum + (cat.stock || 0), 0);
+    finalTicketPrice = Math.min(...finalPriceCategories.map((cat: any) => cat.price || 0));
+  }
 
   const { subCategoryId, categoryId, ...eventPayload } = data;
 
   const updateFields: Record<string, any> = {
     ...eventPayload,
     ...(validCategoryId ? { categoryId: validCategoryId } : {}),
+    ticketPrice: finalTicketPrice,
+    stock: finalStock,
+    priceCategories: finalPriceCategories,
     images: finalEventImages,
     artistInfo: finalArtistInfo,
     rewards: finalRewards,
@@ -556,7 +600,16 @@ export const getAllEventsService = async (
       }
     }
     if (Object.keys(priceFilter).length > 0) {
-      filter.ticketPrice = priceFilter;
+      const priceOr = [
+        { ticketPrice: priceFilter },
+        { 'priceCategories.price': priceFilter },
+      ];
+      if (filter.$or) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: priceOr });
+      } else {
+        filter.$or = priceOr;
+      }
     }
   }
 
@@ -765,7 +818,16 @@ export const getAdminEventsService = async (
       }
     }
     if (Object.keys(priceFilter).length > 0) {
-      filter.ticketPrice = priceFilter;
+      const priceOr = [
+        { ticketPrice: priceFilter },
+        { 'priceCategories.price': priceFilter },
+      ];
+      if (filter.$or) {
+        filter.$and = filter.$and || [];
+        filter.$and.push({ $or: priceOr });
+      } else {
+        filter.$or = priceOr;
+      }
     }
   }
 
