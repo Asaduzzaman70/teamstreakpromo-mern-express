@@ -1,11 +1,11 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
+import type { AuthenticatedRequest } from '../../middlewares/authMiddleware.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
 import { OrderService } from './order.service.js';
 
-const createOrder = catchAsync(async (req: Request, res: Response) => {
-  // @ts-ignore - Assuming req.user is set by auth middleware
-  const userId = req.user._id;
+const createOrder = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
   
   const result = await OrderService.createOrder(userId, req.body);
 
@@ -17,9 +17,8 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const getMyOrders = catchAsync(async (req: Request, res: Response) => {
-  // @ts-ignore - Assuming req.user is set by auth middleware
-  const userId = req.user._id;
+const getMyOrders = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
   
   const result = await OrderService.getMyOrders(userId, req.query);
 
