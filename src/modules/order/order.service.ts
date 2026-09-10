@@ -1,4 +1,3 @@
-import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError.js';
 import { User } from '../auth/auth.model.js';
 import { Marketplace } from '../marketplace/marketplace.model.js';
