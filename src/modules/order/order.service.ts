@@ -140,6 +140,57 @@ const getMyOrders = async (userId: string, query: any) => {
   const total = await Order.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
 
+  const formattedOrders = orders.map((order) => {
+    let title = '';
+    let description = '';
+    let location = '';
+    let photos: string[] = [];
+    const points = order.itemPoints || 0;
+
+    if (order.itemType === 'MARKETPLACE' && order.itemId) {
+      const marketplace = order.itemId as any;
+      title = marketplace.title || '';
+      description = marketplace.description || '';
+      location = marketplace.location || '';
+      photos = marketplace.photos || [];
+    } else if (order.itemType === 'EVENT' && order.eventId) {
+      const event = order.eventId as any;
+      if (event.rewards && Array.isArray(event.rewards) && order.rewardItemId) {
+        const reward = event.rewards.find(
+          (r: any) => r._id?.toString() === order.rewardItemId?.toString()
+        );
+        if (reward) {
+          title = reward.title || event.title || '';
+          description = reward.description || event.description || '';
+          photos = reward.images && reward.images.length > 0 ? reward.images : event.images || [];
+        } else {
+          title = event.title || '';
+          description = event.description || '';
+          photos = event.images || [];
+        }
+      } else {
+        title = event.title || '';
+        description = event.description || '';
+        photos = event.images || [];
+      }
+      location = event.placeName || '';
+    }
+
+    return {
+      _id: order._id,
+      itemType: order.itemType,
+      title,
+      photos,
+      description,
+      location,
+      points,
+      quantity: order.quantity,
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  });
+
   return {
     meta: {
       page,
@@ -147,7 +198,7 @@ const getMyOrders = async (userId: string, query: any) => {
       total,
       totalPage,
     },
-    data: orders,
+    data: formattedOrders,
   };
 };
 
