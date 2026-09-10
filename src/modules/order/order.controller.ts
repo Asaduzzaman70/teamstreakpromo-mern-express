@@ -31,7 +31,22 @@ const getMyOrders = catchAsync(async (req: AuthenticatedRequest, res: Response) 
   });
 });
 
+const getOrderById = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { id } = req.params;
+
+  const result = await OrderService.getOrderById(userId, id as string, req.user?.role);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Order details retrieved successfully',
+    data: result,
+  });
+});
+
 export const OrderController = {
   createOrder,
   getMyOrders,
+  getOrderById,
 };

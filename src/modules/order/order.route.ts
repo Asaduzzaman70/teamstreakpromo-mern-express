@@ -22,4 +22,10 @@ router.get(
   OrderController.getMyOrders
 );
 
+router.get(
+  '/:id',
+  authorizeRoles('USER', 'ADMIN'),
+  OrderController.getOrderById
+);
+
 export const orderRoutes = router;

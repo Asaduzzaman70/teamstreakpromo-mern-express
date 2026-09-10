@@ -1,24 +1,40 @@
 import { AppError } from '../../utils/AppError.js';
 import { User } from '../auth/auth.model.js';
 import { Marketplace } from '../marketplace/marketplace.model.js';
-// import { Event } from '../event/event.model.js'; // Uncomment when Event claiming is implemented
+import { Event } from '../event/event.model.js';
 import { Order } from './order.model.js';
 import type { IOrder } from './order.interface.js';
 
 const createOrder = async (
   userId: string,
-  payload: { itemType: 'MARKETPLACE' | 'EVENT'; itemId: string; quantity: number }
+  payload: {
+    itemType: 'MARKETPLACE' | 'EVENT';
+    itemId?: string;
+    eventId?: string;
+    rewardItemId?: string;
+    quantity?: number;
+  }
 ): Promise<IOrder> => {
-  const { itemType, itemId, quantity = 1 } = payload;
+  const { itemType, quantity = 1 } = payload;
 
   const user = await User.findById(userId);
   if (!user) {
     throw new AppError('User not found', 404);
   }
 
-  let totalPointsRequired = 0;
+  const orderData: Partial<IOrder> = {
+    user: user._id as any,
+    itemType,
+    quantity,
+    status: 'CLAIMED',
+  };
 
   if (itemType === 'MARKETPLACE') {
+    const itemId = payload.itemId;
+    if (!itemId) {
+      throw new AppError('Item ID is required for marketplace order', 400);
+    }
+
     const marketplaceItem = await Marketplace.findById(itemId);
     if (!marketplaceItem) {
       throw new AppError('Marketplace item not found', 404);
@@ -33,7 +49,7 @@ const createOrder = async (
       throw new AppError(`Only ${availableQuantity} items left in stock`, 400);
     }
 
-    totalPointsRequired = marketplaceItem.points * quantity;
+    const totalPointsRequired = marketplaceItem.points * quantity;
 
     // Check if user has enough points
     if (user.totalPoints < totalPointsRequired) {
@@ -46,21 +62,56 @@ const createOrder = async (
 
     marketplaceItem.claimQuantity = (marketplaceItem.claimQuantity || 0) + quantity;
     await marketplaceItem.save();
+
+    orderData.businessOwnerId = marketplaceItem.businessOwnerId as any;
+    orderData.itemId = marketplaceItem._id as any;
+    orderData.itemPoints = marketplaceItem.points;
   } else if (itemType === 'EVENT') {
-    // Implement Event claiming logic here
-    // Similar to marketplace but requires checking Event/Reward models
-    throw new AppError('Event item claiming is not fully implemented yet', 501);
+    const eventId = payload.eventId || payload.itemId;
+    if (!eventId) {
+      throw new AppError('Event ID is required for event order', 400);
+    }
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      throw new AppError('Event not found', 404);
+    }
+
+    const rewardItemId = payload.rewardItemId || payload.itemId;
+    const reward = event.rewards.find(
+      (r: any) => r._id?.toString() === rewardItemId?.toString()
+    ) || event.rewards[0];
+
+    if (!reward) {
+      throw new AppError('Reward item not found in event', 404);
+    }
+
+    if (reward.stock < quantity) {
+      throw new AppError(`Only ${reward.stock} items left in stock`, 400);
+    }
+
+    const totalPointsRequired = reward.pointsRequired * quantity;
+
+    // Check if user has enough points
+    if (user.totalPoints < totalPointsRequired) {
+      throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
+    }
+
+    // Process the order
+    user.totalPoints -= totalPointsRequired;
+    await user.save();
+
+    reward.stock -= quantity;
+    await event.save();
+
+    orderData.hostId = event.hostId as any;
+    orderData.rewardItemId = reward._id as any;
+    orderData.eventId = event._id as any;
+    orderData.itemPoints = reward.pointsRequired;
   }
 
   // Create order
-  const order = await Order.create({
-    user: userId,
-    itemType,
-    item: itemId,
-    quantity,
-    totalPoints: totalPointsRequired,
-    status: 'CLAIMED',
-  });
+  const order = await Order.create(orderData);
 
   return order;
 };
@@ -80,7 +131,8 @@ const getMyOrders = async (userId: string, query: any) => {
   }
 
   const orders = await Order.find(filter)
-    .populate('item') // Populates using the dynamic refPath
+    .populate('itemId', 'title description location photos points')
+    .populate('eventId', 'title description placeName images rewards')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -99,7 +151,28 @@ const getMyOrders = async (userId: string, query: any) => {
   };
 };
 
+const getOrderById = async (userId: string, orderId: string, role?: string): Promise<IOrder> => {
+  const filter: any = { _id: orderId };
+  if (role !== 'ADMIN') {
+    filter.user = userId;
+  }
+
+  const order = await Order.findOne(filter)
+    .populate('itemId')
+    .populate('eventId')
+    .populate('businessOwnerId', 'name email role profileImage phoneNumber')
+    .populate('hostId', 'name email role profileImage phoneNumber')
+    .populate('user', 'name email role profileImage phoneNumber');
+
+  if (!order) {
+    throw new AppError('Order not found', 404);
+  }
+
+  return order;
+};
+
 export const OrderService = {
   createOrder,
   getMyOrders,
+  getOrderById,
 };

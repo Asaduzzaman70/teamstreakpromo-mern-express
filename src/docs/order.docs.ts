@@ -2,6 +2,9 @@ export const orderDocs = {
   '/api/orders': {
     post: {
       summary: 'Place an order for a marketplace or event item (Access: USER)',
+      description: `Place an order using points.
+- **For Marketplace**: provide \`itemType: "MARKETPLACE"\` and \`itemId\` (Marketplace ID).
+- **For Event**: provide \`itemType: "EVENT"\`, \`eventId\`, and \`rewardItemId\` (or \`itemId\` as the reward/event ID).`,
       tags: ['Order'],
       security: [{ bearerAuth: [] }],
       requestBody: {
@@ -10,10 +13,12 @@ export const orderDocs = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['itemType', 'itemId'],
+              required: ['itemType'],
               properties: {
                 itemType: { type: 'string', enum: ['MARKETPLACE', 'EVENT'], example: 'MARKETPLACE' },
-                itemId: { type: 'string', example: '60d0fe4f5311236168a109ca' },
+                itemId: { type: 'string', example: '6aa10171252cac29958233df', description: 'Marketplace Item ID (for MARKETPLACE)' },
+                eventId: { type: 'string', example: '6aa10171252cac29958233df', description: 'Event ID (for EVENT)' },
+                rewardItemId: { type: 'string', example: '6aa10171252cac29958233df', description: 'Reward ID inside event (for EVENT)' },
                 quantity: { type: 'number', example: 1, default: 1 },
               },
             },
@@ -21,7 +26,37 @@ export const orderDocs = {
         },
       },
       responses: {
-        '201': { description: 'Order placed successfully' },
+        '201': {
+          description: 'Order placed successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 201 },
+                  message: { type: 'string', example: 'Order placed successfully' },
+                  data: {
+                    type: 'object',
+                    description: 'Returns created order with schema matching MARKETPLACE or EVENT',
+                    example: {
+                      _id: '6aa2680cf993a4a37bf63a9c',
+                      user: '6a951aa343705f92365a4e14',
+                      businessOwnerId: '6a951ab943705f92365a4e16',
+                      itemId: '6aa10171252cac29958233df',
+                      itemType: 'MARKETPLACE',
+                      itemPoints: 100,
+                      quantity: 1,
+                      status: 'CLAIMED',
+                      createdAt: '2024-10-23T20:45:00.000Z',
+                      updatedAt: '2024-10-23T20:45:00.000Z',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         '400': { description: 'Validation error, insufficient points, or item out of stock' },
         '401': { description: 'Unauthorized' },
         '404': { description: 'Item or User not found' },
@@ -30,7 +65,7 @@ export const orderDocs = {
   },
   '/api/orders/my-orders': {
     get: {
-      summary: 'Get logged in user orders (Access: USER)',
+      summary: 'Get logged in user orders list (Access: USER)',
       tags: ['Order'],
       security: [{ bearerAuth: [] }],
       parameters: [
@@ -60,8 +95,145 @@ export const orderDocs = {
         },
       ],
       responses: {
-        '200': { description: 'Orders retrieved successfully' },
+        '200': {
+          description: 'Orders retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Orders retrieved successfully' },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      page: { type: 'integer', example: 1 },
+                      limit: { type: 'integer', example: 10 },
+                      total: { type: 'integer', example: 2 },
+                      totalPage: { type: 'integer', example: 1 },
+                    },
+                  },
+                  data: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                    },
+                    example: [
+                      {
+                        _id: '6aa2680cf993a4a37bf63a9c',
+                        user: '6a951aa343705f92365a4e14',
+                        businessOwnerId: '6a951ab943705f92365a4e16',
+                        itemId: {
+                          _id: '6aa10171252cac29958233df',
+                          title: 'Adidas Courtblock Shoes',
+                          description: 'NIKE is a leading athletic shoe brand known for innovation and quality.',
+                          location: 'Kamisama Art Club',
+                          points: 100,
+                          photos: ['https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/marketplaces/shoes.png'],
+                        },
+                        itemType: 'MARKETPLACE',
+                        itemPoints: 100,
+                        quantity: 1,
+                        status: 'CLAIMED',
+                        createdAt: '2024-10-23T20:45:00.000Z',
+                        updatedAt: '2024-10-23T20:45:00.000Z',
+                      },
+                      {
+                        _id: '6aa2680cf993a4a37bf63a9d',
+                        user: '6a951aa343705f92365a4e14',
+                        hostId: '6a951ab943705f92365a4e16',
+                        rewardItemId: '6aa10171252cac29958233df',
+                        eventId: {
+                          _id: '6aa10171252cac29958233df',
+                          title: 'Complimentary Craft Beer',
+                          description: 'Enjoy a refreshing selection of complimentary craft beers.',
+                          placeName: 'Kamisama Art Club',
+                          images: ['https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/events/beer.png'],
+                        },
+                        itemType: 'EVENT',
+                        itemPoints: 100,
+                        quantity: 1,
+                        status: 'CLAIMED',
+                        createdAt: '2024-10-23T20:45:00.000Z',
+                        updatedAt: '2024-10-23T20:45:00.000Z',
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
         '401': { description: 'Unauthorized' },
+      },
+    },
+  },
+  '/api/orders/{id}': {
+    get: {
+      summary: 'Get single order details by ID (Access: USER, ADMIN)',
+      tags: ['Order'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          description: 'Order ID',
+          schema: { type: 'string', example: '6aa2680cf993a4a37bf63a9c' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Order details retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Order details retrieved successfully' },
+                  data: {
+                    type: 'object',
+                    example: {
+                      _id: '6aa2680cf993a4a37bf63a9c',
+                      user: {
+                        _id: '6a951aa343705f92365a4e14',
+                        name: 'John Doe',
+                        email: 'john@example.com',
+                      },
+                      businessOwnerId: {
+                        _id: '6a951ab943705f92365a4e16',
+                        name: 'Business Partner',
+                        email: 'business@example.com',
+                      },
+                      itemId: {
+                        _id: '6aa10171252cac29958233df',
+                        title: 'Adidas Courtblock Shoes',
+                        description: 'Detailed description',
+                        location: 'Kamisama Art Club',
+                        points: 100,
+                        quantity: 10,
+                        claimQuantity: 4,
+                        photos: ['https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/marketplaces/shoes.png'],
+                        isActive: true,
+                      },
+                      itemType: 'MARKETPLACE',
+                      itemPoints: 100,
+                      quantity: 1,
+                      status: 'CLAIMED',
+                      createdAt: '2024-10-23T20:45:00.000Z',
+                      updatedAt: '2024-10-23T20:45:00.000Z',
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '401': { description: 'Unauthorized' },
+        '404': { description: 'Order not found' },
       },
     },
   },

@@ -3,10 +3,20 @@ import { Document, Types } from 'mongoose';
 export interface IOrder extends Document {
   user: Types.ObjectId;
   itemType: 'MARKETPLACE' | 'EVENT';
-  item: Types.ObjectId;
+  
+  // Marketplace fields
+  businessOwnerId?: Types.ObjectId;
+  itemId?: Types.ObjectId;
+
+  // Event fields
+  hostId?: Types.ObjectId;
+  rewardItemId?: Types.ObjectId;
+  eventId?: Types.ObjectId;
+
+  itemPoints: number;
   quantity: number;
-  totalPoints: number;
   status: 'CLAIMED' | 'REDEEMED' | 'CANCELLED';
   createdAt: Date;
   updatedAt: Date;
 }
+
