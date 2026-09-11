@@ -66,6 +66,10 @@ Interactive Swagger UI documentation is available when running the application s
 | `GET` | `/api/auth/me` | Get logged-in user profile details | Yes (`Bearer <token>`) |
 | `POST` | `/api/employees` | Create a new employee for employer | Yes (`HOST`, `BUSINESS`) |
 | `GET` | `/api/employees` | Fetch all employees created by employer | Yes (`HOST`, `BUSINESS`) |
+| `POST` | `/api/payments/create-connect-account` | Create Stripe Connect account & get onboarding link | Yes (`HOST`, `BUSINESS`) |
+| `GET` | `/api/payments/account-status` | Get host Stripe Connect status & verification | Yes (`HOST`, `BUSINESS`) |
+| `POST` | `/api/payments/create-login-link` | Generate Stripe Express Dashboard login link | Yes (`HOST`, `BUSINESS`) |
+| `POST` | `/api/payments/webhook` | Stripe webhook listener for real-time status synchronization | No (Stripe Signature) |
 
 ---
 
@@ -123,6 +127,12 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 ### Business Profile & Host Registration Rules
 - **Host / Business Registration Verification**: When registering a user with role `HOST` or `BUSINESS`, `businessName`, `businessDescription`, `location`, `govtIdFrontImage`, and `govtIdBackImage` are required.
 - **Conditional EIN vs. License Images**: User must provide **EITHER** `einNumber` **OR** both `businessLicenseFrontImage` and `businessLicenseBackImage`. If `einNumber` is provided, business license front/back images are optional. If `einNumber` is omitted, both business license front and back images are mandatory.
+
+### Stripe Connect Host Bank Account & Payouts Rules
+- **Host Stripe Connect Account Creation**: Hosts initiate Stripe onboarding via `POST /api/payments/create-connect-account`. A Stripe Express connected account is provisioned, saved in `BusinessProfile.stripeAccountId`, and a secure onboarding URL is generated (`stripe.accountLinks.create`).
+- **Bank Account & Identity Verification**: The host accesses the returned Stripe-hosted onboarding link to verify identity and link bank details.
+- **Webhook Synchronization**: When Stripe processes host verification or status updates, `account.updated` webhook events are received at `POST /api/payments/webhook`, cryptographically verified, and used to update `BusinessProfile` status flags (`isStripeConnected`, `isStripeVerified`, `stripePayoutsEnabled`, `stripeChargesEnabled`, `stripeDetailsSubmitted`, and `stripeAccountStatus`).
+- **Host Express Dashboard**: Verified hosts can generate a direct management session to their Stripe Express Dashboard via `POST /api/payments/create-login-link`.
 
 ### Event Listing & Querying Rules
 - **Active Events Only**: `GET /api/events` only returns active events whose `endDate` is strictly greater than the current server date and time (`endDate > new Date()`). Past/expired events are automatically excluded.
@@ -182,6 +192,13 @@ direction TB
         +string businessLicenseFrontImage
         +string businessLicenseBackImage
         +VerificationStatus verificationStatus
+        +string stripeAccountId
+        +string stripeAccountStatus
+        +boolean isStripeConnected
+        +boolean isStripeVerified
+        +boolean stripePayoutsEnabled
+        +boolean stripeChargesEnabled
+        +boolean stripeDetailsSubmitted
         +date submittedAt
         +date verifiedAt
         +updateProfile(ProfileData)

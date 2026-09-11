@@ -23,6 +23,7 @@ interface Config {
   awsRegion: string;
   awsS3BucketName: string;
   stripeSecretKey: string;
+  stripeWebhookSecret: string;
 }
 
 const config: Config = {
@@ -46,6 +47,7 @@ const config: Config = {
   awsRegion: process.env.AWS_REGION || 'us-east-1',
   awsS3BucketName: process.env.AWS_S3_BUCKET_NAME || 'teamstreakpromo-bucket',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 };
 
 export default config;

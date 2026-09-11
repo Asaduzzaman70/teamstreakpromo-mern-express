@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import type { businessProfileSchema } from './businessProfile.validation.js';
 
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type StripeAccountStatus = 'UNLINKED' | 'PENDING' | 'ACTIVE' | 'RESTRICTED' | 'INACTIVE';
 
 export type BusinessProfileInput = z.infer<typeof businessProfileSchema>;
 
@@ -17,6 +18,13 @@ export interface IBusinessProfile extends Document {
   businessLicenseFrontImage?: string;
   businessLicenseBackImage?: string;
   verificationStatus: VerificationStatus;
+  stripeAccountId?: string;
+  stripeAccountStatus?: StripeAccountStatus;
+  isStripeConnected?: boolean;
+  isStripeVerified?: boolean;
+  stripePayoutsEnabled?: boolean;
+  stripeChargesEnabled?: boolean;
+  stripeDetailsSubmitted?: boolean;
   rating: number;
   sold: number;
   submittedAt: Date;
