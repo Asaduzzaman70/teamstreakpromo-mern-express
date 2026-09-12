@@ -200,6 +200,56 @@ export const marketplaceDocs = {
       },
     },
   },
+  '/api/marketplaces/my-marketplaces': {
+    get: {
+      summary: 'Get marketplace items created by the logged-in business owner',
+      tags: ['Marketplace'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'page',
+          in: 'query',
+          description: 'Page number for pagination (default: 1)',
+          schema: { type: 'integer', default: 1 },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          description: 'Number of items per page (default: 10)',
+          schema: { type: 'integer', default: 10 },
+        },
+        {
+          name: 'search',
+          in: 'query',
+          description: 'Search term for marketplace title',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'categoryId',
+          in: 'query',
+          description: 'Filter by category ID',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'subCategoryId',
+          in: 'query',
+          description: 'Filter by subcategory ID',
+          schema: { type: 'string' },
+        },
+        {
+          name: 'isExpired',
+          in: 'query',
+          description: 'Filter marketplaces by expiration status',
+          schema: { type: 'boolean' },
+        },
+      ],
+      responses: {
+        '200': { description: 'My marketplace items retrieved successfully' },
+        '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden - Only BUSINESS owner can access this endpoint' },
+      },
+    },
+  },
   '/api/marketplaces/{id}': {
     get: {
       summary: 'Get marketplace item details by ID',
