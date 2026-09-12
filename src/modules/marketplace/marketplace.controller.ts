@@ -37,6 +37,23 @@ export const getAllMarketplaces = catchAsync(async (req: Request, res: Response)
   });
 });
 
+// @desc    Get logged-in business owner's marketplace items from token
+// @route   GET /api/marketplaces/my-marketplaces
+// @access  Private (BUSINESS)
+export const getMyMarketplaces = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  const businessOwnerId = req.user!.id;
+  const { meta, result } = await getAllMarketplacesService({
+    ...req.query,
+    businessOwnerId,
+  });
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'My marketplace items retrieved successfully',
+    meta,
+    data: result,
+  });
+});
+
 // @desc    Get marketplace item details by ID
 // @route   GET /api/marketplace/:id
 // @access  Public

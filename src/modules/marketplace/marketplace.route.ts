@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createMarketplace,
   getAllMarketplaces,
+  getMyMarketplaces,
   getMarketplaceById,
   updateMarketplace,
   deleteMarketplace,
@@ -23,6 +24,12 @@ router.post(
   createMarketplace
 );
 router.get('/', getAllMarketplaces);
+router.get(
+  '/my-marketplaces',
+  protect,
+  authorizeRoles('BUSINESS'),
+  getMyMarketplaces
+);
 router.get('/:id', getMarketplaceById);
 router.patch(
   '/:id',
