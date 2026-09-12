@@ -3,7 +3,7 @@ import { createEvent, updateEvent, getAllEvents, getAdminEvents, getEventById, d
 import { createEventSchema, updateEventSchema } from './event.validation.js';
 import { authorizeRoles, protect } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
-import { uploadFields, uploadAny } from '../../middlewares/multer.middleware.js';
+import { uploadAny } from '../../middlewares/multer.middleware.js';
 
 const router = Router();
 

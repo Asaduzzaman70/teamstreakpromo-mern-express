@@ -1,6 +1,7 @@
 import { Schema, model, type Document } from 'mongoose';
 
 export interface IMarketplace extends Document {
+  businessOwnerId: Schema.Types.ObjectId;
   title: string;
   description: string;
   category: Schema.Types.ObjectId;
@@ -21,6 +22,11 @@ export interface IMarketplace extends Document {
 
 const MarketplaceSchema = new Schema<IMarketplace>(
   {
+    businessOwnerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: [true, 'Business Owner ID is required'],
+    },
     title: {
       type: String,
       required: [true, 'Reward Title is required'],

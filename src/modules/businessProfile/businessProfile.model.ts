@@ -54,6 +54,47 @@ const BusinessProfileSchema = new Schema<IBusinessProfile>(
       enum: ['PENDING', 'APPROVED', 'REJECTED'],
       default: 'PENDING',
     },
+    stripeAccountId: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    stripeAccountStatus: {
+      type: String,
+      enum: ['UNLINKED', 'PENDING', 'ACTIVE', 'RESTRICTED', 'INACTIVE'],
+      default: 'UNLINKED',
+    },
+    isStripeConnected: {
+      type: Boolean,
+      default: false,
+    },
+    isStripeVerified: {
+      type: Boolean,
+      default: false,
+    },
+    stripePayoutsEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    stripeChargesEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    stripeDetailsSubmitted: {
+      type: Boolean,
+      default: false,
+    },
+    rating: {
+      type: Number,
+      default: 0,
+      min: [0, 'Rating cannot be negative'],
+      max: [5, 'Rating cannot exceed 5'],
+    },
+    sold: {
+      type: Number,
+      default: 0,
+      min: [0, 'Sold count cannot be negative'],
+    },
     submittedAt: {
       type: Date,
       default: Date.now,

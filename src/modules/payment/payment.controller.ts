@@ -1,38 +1,86 @@
-import { type Request, type Response } from 'express';
+import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../../middlewares/authMiddleware.js';
 import { catchAsync } from '../../utils/catchAsync.js';
 import { sendResponse } from '../../utils/sendResponse.js';
+import { AppError } from '../../utils/AppError.js';
 import { PaymentService } from './payment.service.js';
 
-const createCheckoutSession = catchAsync(async (req: Request, res: Response) => {
-  const { amount, currency, successUrl, cancelUrl } = req.body;
+// @desc    Create/retrieve Stripe Connect account and generate onboarding link
+// @route   POST /api/payments/create-connect-account
+// @access  Private (HOST, BUSINESS)
+const createConnectAccount = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
 
-  if (!amount) {
-    return sendResponse(res, {
-      statusCode: 400,
-      success: false,
-      message: 'Amount is required',
-      data: null,
+    const result = await PaymentService.createConnectAccount(req.user.id, req.body);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Stripe onboarding link generated successfully',
+      data: result,
     });
   }
+);
 
-  const result = await PaymentService.createCheckoutSession(
-    amount,
-    currency,
-    successUrl,
-    cancelUrl
-  );
+// @desc    Get Stripe Connect account & payout status for host
+// @route   GET /api/payments/account-status
+// @access  Private (HOST, BUSINESS)
+const getAccountStatus = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const result = await PaymentService.getAccountStatus(req.user.id);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Stripe account status retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+// @desc    Create Stripe Express Dashboard login link for host
+// @route   POST /api/payments/create-login-link
+// @access  Private (HOST, BUSINESS)
+const createLoginLink = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const result = await PaymentService.createLoginLink(req.user.id);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Stripe dashboard login link created successfully',
+      data: result,
+    });
+  }
+);
+
+// @desc    Stripe Webhook handler to synchronize account status updates
+// @route   POST /api/payments/webhook
+// @access  Public (Stripe signature verified)
+const handleWebhook = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  const rawBody = (req as any).rawBody;
+  const signature = req.headers['stripe-signature'];
+
+  const result = await PaymentService.handleWebhook(rawBody, signature, req.body);
 
   sendResponse(res, {
     statusCode: 200,
-    success: true,
-    message: 'Payment Checkout Session created successfully',
-    data: {
-      sessionId: result.id,
-      url: result.url,
-    },
+    message: 'Stripe webhook received and processed successfully',
+    data: result,
   });
 });
 
 export const PaymentController = {
-  createCheckoutSession,
+  createConnectAccount,
+  getAccountStatus,
+  createLoginLink,
+  handleWebhook,
 };

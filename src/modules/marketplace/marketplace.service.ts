@@ -6,7 +6,30 @@ import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateMarketplaceInput, UpdateMarketplaceInput, MarketplaceQuery } from './marketplace.interface.js';
 
+const formatMarketplaceResponse = (item: any) => {
+  const doc = item.toObject ? item.toObject() : item;
+  const user = doc.businessOwnerId || {};
+  const profile = user.businessProfile || {};
+
+  const businessProfile = {
+    rating: profile.rating ?? user.rating ?? 0,
+    sold: profile.sold ?? user.sold ?? 0,
+    businessName: profile.businessName || user.name || '',
+    businessDescription: profile.businessDescription || '',
+    location: profile.location || doc.location || '',
+    profileImage: user.profileImage || '',
+  };
+
+  const { businessOwnerId, ...rest } = doc;
+
+  return {
+    ...rest,
+    businessProfile,
+  };
+};
+
 export const createMarketplaceService = async (
+  businessOwnerId: string,
   data: CreateMarketplaceInput,
   files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[]
 ): Promise<IMarketplace> => {
@@ -53,6 +76,7 @@ export const createMarketplaceService = async (
   }
 
   const marketplaceItem = new Marketplace({
+    businessOwnerId: businessOwnerId as any,
     title: data.title,
     description: data.description,
     category: data.categoryId as any,
@@ -77,11 +101,15 @@ export const createMarketplaceService = async (
 
 export const getAllMarketplacesService = async (
   query: MarketplaceQuery
-): Promise<{ meta: IMeta; result: IMarketplace[] }> => {
+): Promise<{ meta: IMeta; result: any[] }> => {
   const filter: Record<string, any> = {};
 
   if (query.search) {
     filter.title = { $regex: query.search, $options: 'i' };
+  }
+
+  if (query.businessOwnerId) {
+    filter.businessOwnerId = query.businessOwnerId as any;
   }
 
   if (query.categoryId) {
@@ -134,6 +162,14 @@ export const getAllMarketplacesService = async (
 
   const marketplaces = await Marketplace.find(filter)
     .populate([
+      {
+        path: 'businessOwnerId',
+        select: 'name email phoneNumber profileImage role rating sold',
+        populate: {
+          path: 'businessProfile',
+          select: 'businessName businessDescription location verificationStatus rating sold',
+        },
+      },
       { path: 'category', select: 'name description' },
       { path: 'subCategory', select: 'name description' },
     ])
@@ -148,12 +184,20 @@ export const getAllMarketplacesService = async (
       total,
       totalPage,
     },
-    result: marketplaces,
+    result: marketplaces.map(formatMarketplaceResponse),
   };
 };
 
-export const getMarketplaceByIdService = async (id: string): Promise<IMarketplace> => {
+export const getMarketplaceByIdService = async (id: string): Promise<any> => {
   const marketplaceItem = await Marketplace.findById(id).populate([
+    {
+      path: 'businessOwnerId',
+      select: 'name email phoneNumber profileImage role rating sold',
+      populate: {
+        path: 'businessProfile',
+        select: 'businessName businessDescription location verificationStatus rating sold',
+      },
+    },
     { path: 'category', select: 'name description' },
     { path: 'subCategory', select: 'name description' },
   ]);
@@ -161,7 +205,7 @@ export const getMarketplaceByIdService = async (id: string): Promise<IMarketplac
   if (!marketplaceItem) {
     throw new AppError('Marketplace item not found', 404);
   }
-  return marketplaceItem;
+  return formatMarketplaceResponse(marketplaceItem);
 };
 
 export const updateMarketplaceService = async (
