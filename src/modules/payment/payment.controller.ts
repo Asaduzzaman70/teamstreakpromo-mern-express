@@ -66,10 +66,17 @@ const createLoginLink = catchAsync(
 // @route   POST /api/payments/webhook
 // @access  Public (Stripe signature verified)
 const handleWebhook = catchAsync(async (req: Request, res: Response): Promise<void> => {
+  console.log('\n=================== [STRIPE WEBHOOK ENTRY] ===================');
   const rawBody = (req as any).rawBody;
   const signature = req.headers['stripe-signature'];
 
+  console.log(`[Webhook Controller] Signature present: ${Boolean(signature)}`);
+  console.log(`[Webhook Controller] Raw body size: ${rawBody ? rawBody.length : 0} bytes`);
+
   const result = await PaymentService.handleWebhook(rawBody, signature, req.body);
+
+  console.log(`[Webhook Controller SUCCESS] Handled event ${result.eventType} (received: ${result.received})`);
+  console.log('=================== [STRIPE WEBHOOK END] ===================\n');
 
   sendResponse(res, {
     statusCode: 200,

@@ -116,9 +116,16 @@ const getAccountStatus = async (userId: string): Promise<IAccountStatusResponse>
     let status: StripeAccountStatus = 'PENDING';
     if (account.payouts_enabled && account.charges_enabled) {
       status = 'ACTIVE';
+    } else if (account.details_submitted) {
+      const disabledReason = account.requirements?.disabled_reason || '';
+      if (disabledReason.startsWith('rejected.')) {
+        status = 'RESTRICTED';
+      } else {
+        status = 'PENDING';
+      }
     } else if (account.requirements?.disabled_reason) {
       status = 'RESTRICTED';
-    } else if (account.details_submitted) {
+    } else {
       status = 'PENDING';
     }
 
@@ -196,6 +203,7 @@ const handleWebhook = async (
   let event: Stripe.Event;
   const sig = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
 
+
   if (config.stripeWebhookSecret && sig && payloadBuffer) {
     try {
       event = stripe.webhooks.constructEvent(
@@ -204,52 +212,102 @@ const handleWebhook = async (
         config.stripeWebhookSecret
       );
     } catch (err: any) {
+      console.error(`[Stripe Webhook Step 1 ERROR] Signature verification failed: ${err.message}`);
       throw new AppError(`Stripe Webhook Signature Verification Failed: ${err.message}`, 400);
     }
   } else if (fallbackBody && fallbackBody.type) {
     event = fallbackBody as Stripe.Event;
   } else {
+    console.error('[Stripe Webhook Step 1 ERROR] Invalid webhook payload or missing signature');
     throw new AppError('Invalid webhook payload or missing signature', 400);
   }
 
+
   switch (event.type) {
-    case 'account.updated': {
-      const account = event.data.object as Stripe.Account;
-      const stripeAccountId = account.id;
+    case 'account.updated':
+    case 'capability.updated':
+    case 'person.updated': {
+      const eventObj = event.data.object as any;
+
+      // Extract ONLY valid Stripe Account ID starting with 'acct_'
+      // Do NOT use capability or object IDs (such as 'card_payments' or 'transfers')
+      let stripeAccountId: string | undefined;
+      if (event.type === 'account.updated' && eventObj?.object === 'account' && typeof eventObj?.id === 'string' && eventObj.id.startsWith('acct_')) {
+        stripeAccountId = eventObj.id;
+      } else if (event.account && typeof event.account === 'string' && event.account.startsWith('acct_')) {
+        stripeAccountId = event.account;
+      } else if (eventObj?.account && typeof eventObj.account === 'string' && eventObj.account.startsWith('acct_')) {
+        stripeAccountId = eventObj.account;
+      }
+
+      if (!stripeAccountId) {
+        console.warn(`[Stripe Webhook Step 3 WARN] Could not determine valid Stripe Account ID (acct_...) from event '${event.type}'`);
+        break;
+      }
+
 
       let businessProfile = await BusinessProfile.findOne({ stripeAccountId });
-      if (!businessProfile && account.metadata?.businessProfileId) {
-        businessProfile = await BusinessProfile.findById(account.metadata.businessProfileId);
+      if (!businessProfile && eventObj?.metadata?.businessProfileId) {
+        businessProfile = await BusinessProfile.findById(eventObj.metadata.businessProfileId);
       }
-      if (!businessProfile && account.metadata?.userId) {
-        businessProfile = await BusinessProfile.findOne({ userId: account.metadata.userId });
+      if (!businessProfile && eventObj?.metadata?.userId) {
+        businessProfile = await BusinessProfile.findOne({ userId: eventObj.metadata.userId });
       }
 
-      if (businessProfile) {
-        const isVerified = Boolean(account.details_submitted && account.payouts_enabled);
-        let status: StripeAccountStatus = 'PENDING';
-        if (account.payouts_enabled && account.charges_enabled) {
-          status = 'ACTIVE';
-        } else if (account.requirements?.disabled_reason) {
+      if (!businessProfile) {
+        console.warn(`[Stripe Webhook Step 3 WARN] No matching BusinessProfile found in database for stripeAccountId '${stripeAccountId}'!`);
+        break;
+      }
+
+
+      // Retrieve full updated account object directly from Stripe API to get accurate live data
+      let account: Stripe.Account;
+      if (config.stripeSecretKey && !config.stripeSecretKey.startsWith('sk_test_placeholder')) {
+        try {
+          account = await stripe.accounts.retrieve(stripeAccountId);
+        } catch (apiErr: any) {
+          console.warn(`[Stripe Webhook Step 4 WARN] Could not fetch fresh account from Stripe API: ${apiErr.message}.`);
+          if (event.type === 'account.updated' && eventObj?.object === 'account') {
+            account = eventObj as Stripe.Account;
+          } else {
+            console.error(`[Stripe Webhook Step 4 ERROR] Cannot process event '${event.type}' without full account object.`);
+            break;
+          }
+        }
+      } else if (event.type === 'account.updated' && eventObj?.object === 'account') {
+        account = eventObj as Stripe.Account;
+      } else {
+        console.error(`[Stripe Webhook Step 4 ERROR] Cannot process event '${event.type}' without full account object.`);
+        break;
+      }
+
+      const isVerified = Boolean(account.details_submitted && account.payouts_enabled);
+      let status: StripeAccountStatus = 'PENDING';
+
+      if (account.payouts_enabled && account.charges_enabled) {
+        status = 'ACTIVE';
+      } else {
+        const disabledReason = account.requirements?.disabled_reason || '';
+        if (disabledReason.startsWith('rejected.')) {
           status = 'RESTRICTED';
-        } else if (account.details_submitted) {
+        } else {
           status = 'PENDING';
         }
-
-        businessProfile.stripeAccountId = stripeAccountId;
-        businessProfile.isStripeConnected = true;
-        businessProfile.isStripeVerified = isVerified;
-        businessProfile.stripePayoutsEnabled = Boolean(account.payouts_enabled);
-        businessProfile.stripeChargesEnabled = Boolean(account.charges_enabled);
-        businessProfile.stripeDetailsSubmitted = Boolean(account.details_submitted);
-        businessProfile.stripeAccountStatus = status;
-
-        if (isVerified && !businessProfile.verifiedAt) {
-          businessProfile.verifiedAt = new Date();
-        }
-
-        await businessProfile.save();
       }
+
+      businessProfile.stripeAccountId = stripeAccountId;
+      businessProfile.isStripeConnected = true;
+      businessProfile.isStripeVerified = isVerified;
+      businessProfile.stripePayoutsEnabled = Boolean(account.payouts_enabled);
+      businessProfile.stripeChargesEnabled = Boolean(account.charges_enabled);
+      businessProfile.stripeDetailsSubmitted = Boolean(account.details_submitted);
+      businessProfile.stripeAccountStatus = status;
+
+      if (isVerified && !businessProfile.verifiedAt) {
+        businessProfile.verifiedAt = new Date();
+      }
+
+      await businessProfile.save();
       break;
     }
 
@@ -264,12 +322,15 @@ const handleWebhook = async (
           businessProfile.stripePayoutsEnabled = false;
           businessProfile.stripeChargesEnabled = false;
           await businessProfile.save();
+        } else {
+          console.warn(`[Stripe Webhook Step 3 WARN] No BusinessProfile found for deauthorization with stripeAccountId '${deauthAccountId}'`);
         }
       }
       break;
     }
 
     default:
+      console.log(`[Stripe Webhook INFO] Unhandled event type '${event.type}'. No DB changes required.`);
       break;
   }
 
