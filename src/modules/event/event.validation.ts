@@ -127,19 +127,9 @@ export const createEventSchema = z
       (val) => (typeof val === 'string' || val instanceof Date ? new Date(val) : val),
       z.date({ message: 'Valid end date is required' })
     ),
-    ticketPrice: z
-      .preprocess(
-        (val) => (typeof val === 'string' ? parseFloat(val) : val),
-        z.number({ message: 'Ticket price must be a number' }).min(0, 'Ticket price cannot be negative').optional()
-      )
-      .transform((val) => val ?? 0),
-    stock: z
-      .preprocess(
-        (val) => (typeof val === 'string' ? parseInt(val, 10) : val),
-        z.number({ message: 'Stock must be a number' }).min(0, 'Stock cannot be negative').optional()
-      )
-      .transform((val) => val ?? 0),
     priceCategories: z
+
+
       .preprocess(
         (val) => {
           if (typeof val === 'string') {

@@ -3,14 +3,21 @@ import config from '../../config/config.js';
 import { BusinessProfile } from '../businessProfile/businessProfile.model.js';
 import { User } from '../auth/auth.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { Event } from '../event/event.model.js';
+import { Order } from '../order/order.model.js';
+import { EventOrder } from '../eventOrder/eventOrder.model.js';
+import { EventOrderService } from '../eventOrder/eventOrder.service.js';
 import type {
   CreateConnectAccountInput,
   ICreateConnectAccountResponse,
+  CreateCheckoutSessionInput,
+  ICreateCheckoutSessionResponse,
   IAccountStatusResponse,
   ICreateLoginLinkResponse,
   IWebhookResponse,
 } from './payment.interface.js';
 import type { StripeAccountStatus } from '../businessProfile/businessProfile.interface.js';
+
 
 // Initialize Stripe instance with safe fallback to prevent boot crashes when key is not yet in .env
 const stripe = new Stripe(config.stripeSecretKey || 'sk_test_placeholder_teamstreakpromo');
@@ -193,7 +200,162 @@ const createLoginLink = async (userId: string): Promise<ICreateLoginLinkResponse
 };
 
 /**
- * Handles incoming Stripe Webhooks and updates the host's BusinessProfile status.
+ * Validates event & ticket availability, then creates a Stripe Checkout Session for buying tickets (with optional rewards).
+ */
+const createCheckoutSession = async (
+  userId: string,
+  payload: CreateCheckoutSessionInput
+): Promise<ICreateCheckoutSessionResponse> => {
+  checkStripeConfig();
+
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError('User not found', 404);
+  }
+
+  const { eventId, successUrl, cancelUrl } = payload;
+
+  const event = await Event.findById(eventId);
+  if (!event) {
+    throw new AppError('Event not found', 404);
+  }
+
+  // 1. Process ticket items
+  const inputTickets = payload.tickets && payload.tickets.length > 0 ? payload.tickets : [{ quantity: 1 }];
+
+  const validatedTickets: Array<{
+    priceCategoryId?: string;
+    categoryName: string;
+    unitPrice: number;
+    quantity: number;
+  }> = [];
+
+  const stripeLineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  let totalTicketQuantity = 0;
+
+  for (const item of inputTickets) {
+    const qty = Math.max(1, item.quantity || 1);
+    let unitPrice = event.priceCategories?.[0]?.price || 0;
+    let categoryName = 'General';
+    const targetPriceCat = item.priceCategoryId
+      ? event.priceCategories?.find(
+        (pc: any) => pc._id?.toString() === item.priceCategoryId || pc.id === item.priceCategoryId
+      )
+      : event.priceCategories?.[0];
+
+    if (item.priceCategoryId && !targetPriceCat) {
+      throw new AppError(`Price category '${item.priceCategoryId}' not found for this event`, 404);
+    }
+
+    if (targetPriceCat) {
+      if (targetPriceCat.stock < qty) {
+        throw new AppError(
+          `Only ${targetPriceCat.stock} tickets available for price category '${targetPriceCat.name}'`,
+          400
+        );
+      }
+      unitPrice = targetPriceCat.price;
+      categoryName = targetPriceCat.name;
+    }
+
+    totalTicketQuantity += qty;
+
+    const valTicket: {
+      priceCategoryId?: string;
+      categoryName: string;
+      unitPrice: number;
+      quantity: number;
+    } = {
+      categoryName,
+      unitPrice,
+      quantity: qty,
+    };
+    if (item.priceCategoryId) {
+      valTicket.priceCategoryId = item.priceCategoryId;
+    }
+    validatedTickets.push(valTicket);
+
+    stripeLineItems.push({
+      price_data: {
+        currency: 'usd',
+        product_data: {
+          name: `Event Ticket: ${event.title} (${categoryName})`,
+          description: `${qty} ticket(s) for ${event.placeName}`,
+          images:
+            event.images && event.images.length > 0 && typeof event.images[0] === 'string'
+              ? [event.images[0]]
+              : [],
+        },
+        unit_amount: Math.round(unitPrice * 100),
+      },
+      quantity: qty,
+    });
+  }
+
+  // 2. Process reward items & check points
+  const inputRewards = payload.rewards || [];
+  const validatedRewards: Array<{ rewardId: string; quantity: number }> = [];
+  let totalPointsRequired = 0;
+
+  for (const rItem of inputRewards) {
+    if (!rItem.rewardId) continue;
+    const qty = Math.max(1, rItem.quantity || 1);
+
+    const reward = event.rewards?.find(
+      (r: any) => r._id?.toString() === rItem.rewardId || r.id === rItem.rewardId
+    );
+    if (!reward) {
+      throw new AppError(`Reward item '${rItem.rewardId}' not found in this event`, 404);
+    }
+    if (reward.stock < qty) {
+      throw new AppError(`Only ${reward.stock} items left for reward '${reward.title}'`, 400);
+    }
+    totalPointsRequired += (reward.pointsRequired || 0) * qty;
+    validatedRewards.push({
+      rewardId: rItem.rewardId,
+      quantity: qty,
+    });
+  }
+
+  if (totalPointsRequired > 0 && user.totalPoints < totalPointsRequired) {
+    throw new AppError(
+      `Insufficient points to claim reward(s). You need ${totalPointsRequired} points, but you have ${user.totalPoints} points.`,
+      400
+    );
+  }
+
+
+
+  const returnSuccessUrl =
+    successUrl || `${config.serverUrl}/api/payments/checkout-success?session_id={CHECKOUT_SESSION_ID}`;
+  const returnCancelUrl =
+    cancelUrl || `${config.serverUrl}/api/payments/checkout-cancel`;
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    mode: 'payment',
+    customer_email: user.email,
+    line_items: stripeLineItems,
+    metadata: {
+      userId,
+      eventId,
+      tickets: JSON.stringify(validatedTickets),
+      rewards: JSON.stringify(validatedRewards),
+      totalTicketQuantity: totalTicketQuantity.toString(),
+      type: 'EVENT_TICKET',
+    },
+    success_url: returnSuccessUrl,
+    cancel_url: returnCancelUrl,
+  });
+
+  return {
+    sessionId: session.id,
+    url: session.url,
+  };
+};
+
+/**
+ * Handles incoming Stripe Webhooks and updates BusinessProfile status or completes ticket purchases.
  */
 const handleWebhook = async (
   payloadBuffer: Buffer | string | undefined,
@@ -202,7 +364,6 @@ const handleWebhook = async (
 ): Promise<IWebhookResponse> => {
   let event: Stripe.Event;
   const sig = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
-
 
   if (config.stripeWebhookSecret && sig && payloadBuffer) {
     try {
@@ -222,8 +383,115 @@ const handleWebhook = async (
     throw new AppError('Invalid webhook payload or missing signature', 400);
   }
 
-
   switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (session.payment_status === 'paid' || session.status === 'complete') {
+        const metadata = session.metadata || {};
+        const { userId, eventId, tickets: rawTicketsJson, rewards: rawRewardsJson, totalTicketQuantity: rawTotalQty } = metadata;
+
+        if (userId && eventId) {
+          // Idempotency check: verify if EventOrder for this session already exists
+          const existingOrder = await EventOrder.findOne({ stripeSessionId: session.id });
+          if (!existingOrder) {
+            const eventDoc = await Event.findById(eventId);
+            if (eventDoc) {
+              // Parse tickets metadata
+              let parsedTickets: Array<{
+                priceCategoryId?: string;
+                categoryName: string;
+                unitPrice: number;
+                quantity: number;
+              }> = [];
+
+              if (rawTicketsJson) {
+                try {
+                  parsedTickets = JSON.parse(rawTicketsJson);
+                } catch {
+                  parsedTickets = [];
+                }
+              }
+
+              if (parsedTickets.length === 0) {
+                const defaultQty = parseInt(rawTotalQty || '1', 10) || 1;
+                parsedTickets = [
+                  {
+                    categoryName: 'General',
+                    unitPrice: eventDoc.priceCategories?.[0]?.price || 0,
+                    quantity: defaultQty,
+                  },
+                ];
+              }
+
+
+              const totalTicketQuantity = parsedTickets.reduce((acc, t) => acc + t.quantity, 0);
+              const totalAmount = (session.amount_total || 0) / 100;
+
+              // 1. Save EventOrder in eventOrder module (and decrement event ticket stock per price category)
+              const eventOrderPayload: any = {
+                userId,
+                hostId: eventDoc.hostId.toString(),
+                eventId,
+                tickets: parsedTickets,
+                totalTicketQuantity,
+                totalAmount,
+                stripeSessionId: session.id,
+                pointsEarned: totalTicketQuantity,
+              };
+              await EventOrderService.createEventOrder(eventOrderPayload);
+
+              // 2. Save Reward Orders in order module and calculate points spent
+              let parsedRewards: Array<{ rewardId: string; quantity: number }> = [];
+              if (rawRewardsJson) {
+                try {
+                  parsedRewards = JSON.parse(rawRewardsJson);
+                } catch {
+                  parsedRewards = [];
+                }
+              }
+
+              let totalPointsSpent = 0;
+              for (const rewardMeta of parsedRewards) {
+                const reward = eventDoc.rewards?.find(
+                  (r: any) => r._id?.toString() === rewardMeta.rewardId || r.id === rewardMeta.rewardId
+                );
+                if (reward) {
+                  const qtyToClaim = rewardMeta.quantity || 1;
+                  totalPointsSpent += (reward.pointsRequired || 0) * qtyToClaim;
+                  reward.stock = Math.max(0, reward.stock - qtyToClaim);
+                  await eventDoc.save();
+
+                  const orderData: any = {
+                    user: userId,
+                    itemType: 'EVENT',
+                    hostId: eventDoc.hostId,
+                    eventId: eventDoc._id,
+                    rewardItemId: reward._id,
+                    itemPoints: reward.pointsRequired || 0,
+                    quantity: qtyToClaim,
+                    status: 'CLAIMED',
+                  };
+                  await Order.create(orderData);
+                }
+              }
+
+              // 3. Update user points (gain 1 point per ticket, minus points spent on rewards)
+              const userDoc = await User.findById(userId);
+              if (userDoc) {
+                const updatedPoints = (userDoc.totalPoints || 0) + totalTicketQuantity - totalPointsSpent;
+                userDoc.totalPoints = Math.max(0, updatedPoints);
+                await userDoc.save();
+              }
+
+            }
+          }
+        }
+      }
+      break;
+    }
+
+
+
     case 'account.updated':
     case 'capability.updated':
     case 'person.updated': {
@@ -245,7 +513,6 @@ const handleWebhook = async (
         break;
       }
 
-
       let businessProfile = await BusinessProfile.findOne({ stripeAccountId });
       if (!businessProfile && eventObj?.metadata?.businessProfileId) {
         businessProfile = await BusinessProfile.findById(eventObj.metadata.businessProfileId);
@@ -258,7 +525,6 @@ const handleWebhook = async (
         console.warn(`[Stripe Webhook Step 3 WARN] No matching BusinessProfile found in database for stripeAccountId '${stripeAccountId}'!`);
         break;
       }
-
 
       // Retrieve full updated account object directly from Stripe API to get accurate live data
       let account: Stripe.Account;
@@ -330,7 +596,6 @@ const handleWebhook = async (
     }
 
     default:
-      console.log(`[Stripe Webhook INFO] Unhandled event type '${event.type}'. No DB changes required.`);
       break;
   }
 
@@ -342,7 +607,9 @@ const handleWebhook = async (
 
 export const PaymentService = {
   createConnectAccount,
+  createCheckoutSession,
   getAccountStatus,
   createLoginLink,
   handleWebhook,
 };
+

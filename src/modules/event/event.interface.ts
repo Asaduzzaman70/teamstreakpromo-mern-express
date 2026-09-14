@@ -38,8 +38,6 @@ export interface IEvent extends Document {
   description: string;
   startDate: Date;
   endDate: Date;
-  ticketPrice: number;
-  stock: number;
   priceCategories: IPriceCategory[];
   images: string[];
   artistInfo: IArtistInfo[];
@@ -47,6 +45,8 @@ export interface IEvent extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
 export type UpdateEventInput = z.infer<typeof updateEventSchema>;

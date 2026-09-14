@@ -62,22 +62,32 @@ const createLoginLink = catchAsync(
   }
 );
 
+// @desc    Create Stripe Checkout Session for event ticket purchase
+// @route   POST /api/payments/create-checkout-session
+// @access  Private (Authenticated users)
+const createCheckoutSession = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const result = await PaymentService.createCheckoutSession(req.user.id, req.body);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Stripe checkout session created successfully',
+      data: result,
+    });
+  }
+);
+
 // @desc    Stripe Webhook handler to synchronize account status updates
 // @route   POST /api/payments/webhook
 // @access  Public (Stripe signature verified)
 const handleWebhook = catchAsync(async (req: Request, res: Response): Promise<void> => {
-  console.log('\n=================== [STRIPE WEBHOOK ENTRY] ===================');
   const rawBody = (req as any).rawBody;
   const signature = req.headers['stripe-signature'];
-
-  console.log(`[Webhook Controller] Signature present: ${Boolean(signature)}`);
-  console.log(`[Webhook Controller] Raw body size: ${rawBody ? rawBody.length : 0} bytes`);
-
   const result = await PaymentService.handleWebhook(rawBody, signature, req.body);
-
-  console.log(`[Webhook Controller SUCCESS] Handled event ${result.eventType} (received: ${result.received})`);
-  console.log('=================== [STRIPE WEBHOOK END] ===================\n');
-
   sendResponse(res, {
     statusCode: 200,
     message: 'Stripe webhook received and processed successfully',
@@ -87,7 +97,9 @@ const handleWebhook = catchAsync(async (req: Request, res: Response): Promise<vo
 
 export const PaymentController = {
   createConnectAccount,
+  createCheckoutSession,
   getAccountStatus,
   createLoginLink,
   handleWebhook,
 };
+

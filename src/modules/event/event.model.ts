@@ -81,16 +81,8 @@ const EventSchema = new Schema<IEvent>(
       type: Date,
       required: [true, 'End date is required'],
     },
-    ticketPrice: {
-      type: Number,
-      default: 0,
-    },
-    stock: {
-      type: Number,
-      min: [0, 'Stock cannot be negative'],
-      default: 0,
-    },
     priceCategories: {
+
       type: [PriceCategorySchema],
       default: [],
       validate: [
@@ -98,6 +90,7 @@ const EventSchema = new Schema<IEvent>(
         'Cannot have more than 10 price categories',
       ],
     },
+
     images: {
       type: [String],
       default: [],

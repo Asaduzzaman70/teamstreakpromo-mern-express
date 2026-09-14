@@ -1,13 +1,23 @@
 import type { z } from 'zod';
-import type { createConnectAccountSchema, createLoginLinkSchema } from './payment.validation.js';
+import type {
+  createConnectAccountSchema,
+  createLoginLinkSchema,
+  createCheckoutSessionSchema,
+} from './payment.validation.js';
 import type { StripeAccountStatus } from '../businessProfile/businessProfile.interface.js';
 
 export type CreateConnectAccountInput = z.infer<typeof createConnectAccountSchema>;
 export type CreateLoginLinkInput = z.infer<typeof createLoginLinkSchema>;
+export type CreateCheckoutSessionInput = z.infer<typeof createCheckoutSessionSchema>;
 
 export interface ICreateConnectAccountResponse {
   stripeAccountId: string;
   url: string;
+}
+
+export interface ICreateCheckoutSessionResponse {
+  sessionId: string;
+  url: string | null;
 }
 
 export interface IAccountStatusResponse {
@@ -35,3 +45,4 @@ export interface IWebhookResponse {
   received: boolean;
   eventType?: string;
 }
+

@@ -23,3 +23,24 @@ export const createConnectAccountSchema = z.object({
 });
 
 export const createLoginLinkSchema = z.object({}).optional();
+
+const ticketItemSchema = z.object({
+  priceCategoryId: z.string().trim().optional(),
+  quantity: z.number().int().min(1, 'Quantity must be at least 1').default(1),
+});
+
+const rewardItemSchema = z.object({
+  rewardId: z.string({ message: 'rewardId is required' }).trim().min(1),
+  quantity: z.number().int().min(1, 'Quantity must be at least 1').default(1),
+});
+
+export const createCheckoutSessionSchema = z.object({
+  eventId: z.string({ message: 'eventId is required' }).trim().min(1, 'eventId cannot be empty'),
+  tickets: z.array(ticketItemSchema).optional().default([]),
+  rewards: z.array(rewardItemSchema).optional().default([]),
+  successUrl: z.string().url('successUrl must be a valid URL').optional(),
+  cancelUrl: z.string().url('cancelUrl must be a valid URL').optional(),
+});
+
+
+
