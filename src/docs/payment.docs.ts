@@ -264,12 +264,133 @@ export const paymentDocs = {
       },
     },
   },
+  '/api/payments/create-checkout-session': {
+    post: {
+      tags: ['Payments'],
+      summary: 'Create Stripe Checkout Session for Event Ticket & Rewards Purchase',
+      description:
+        'Validates ticket availability across price categories and reward availability for an event, then creates a Stripe Checkout Session. Upon payment completion, user points are awarded (1 point per ticket), ticket orders are saved to eventOrder, and reward redemption orders are saved to order.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['eventId'],
+              properties: {
+                eventId: {
+                  type: 'string',
+                  description: 'MongoDB ObjectId of the Event',
+                  example: '66e500000000000000000001',
+                },
+                tickets: {
+                  type: 'array',
+                  description: 'List of ticket price categories and quantities to purchase',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      priceCategoryId: {
+                        type: 'string',
+                        description: 'ID of the price category in event.priceCategories (optional for general ticket)',
+                        example: '66e500000000000000000010',
+                      },
+                      quantity: {
+                        type: 'integer',
+                        description: 'Number of tickets for this price category',
+                        example: 2,
+                        default: 1,
+                      },
+                    },
+                  },
+                },
+                rewards: {
+                  type: 'array',
+                  description: 'List of reward items and quantities to claim with ticket purchase',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      rewardId: {
+                        type: 'string',
+                        description: 'ID of the reward subdocument in event.rewards',
+                        example: '66e500000000000000000020',
+                      },
+                      quantity: {
+                        type: 'integer',
+                        description: 'Quantity of reward items',
+                        example: 1,
+                        default: 1,
+                      },
+                    },
+                  },
+                },
+                successUrl: {
+                  type: 'string',
+                  description: 'URL to redirect after successful checkout',
+                  example: 'https://yourfrontend.com/payment-success',
+                },
+
+                cancelUrl: {
+                  type: 'string',
+                  description: 'URL to redirect if checkout is cancelled',
+                  example: 'https://yourfrontend.com/payment-cancel',
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Stripe checkout session created successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Stripe checkout session created successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      sessionId: {
+                        type: 'string',
+                        example: 'cs_test_a1b2c3d4e5f6g7h8i9',
+                      },
+                      url: {
+                        type: 'string',
+                        example: 'https://checkout.stripe.com/c/pay/cs_test_a1b2c3d4e5f6g7h8i9',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': {
+          description: 'Bad Request - Requested ticket or reward stock unavailable',
+        },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+        },
+        '404': {
+          description: 'Not Found - Event, price category, or reward item not found',
+        },
+      },
+    },
+  },
   '/api/payments/webhook': {
     post: {
       tags: ['Payments'],
       summary: 'Stripe Webhook Listener',
       description:
-        'Public endpoint called by Stripe events (e.g., account.updated). Validates stripe-signature header and updates the host BusinessProfile verification and payout status in MongoDB.',
+        'Public endpoint called by Stripe events (e.g., account.updated, checkout.session.completed). Validates stripe-signature header and updates account status or fulfills event ticket and reward orders.',
       requestBody: {
         required: true,
         content: {
@@ -310,7 +431,7 @@ export const paymentDocs = {
                       },
                       eventType: {
                         type: 'string',
-                        example: 'account.updated',
+                        example: 'checkout.session.completed',
                       },
                     },
                   },
@@ -326,3 +447,4 @@ export const paymentDocs = {
     },
   },
 };
+

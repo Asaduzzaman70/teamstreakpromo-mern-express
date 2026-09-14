@@ -21,9 +21,9 @@ export const eventDocs = {
                 description: { type: 'string', example: 'Annual summer live concert and music festival.' },
                 startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
                 endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
-                ticketPrice: { type: 'number', example: 49.99 },
-                stock: { type: 'integer', example: 100 },
                 priceCategories: { type: 'string', example: '[{"name":"VIP","stock":20,"price":200},{"name":"General","stock":80,"price":50}]', description: 'JSON array string of price categories (up to 10 max). Each has name, stock, and price.' },
+
+
                 images: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Event main image files upload' },
                 artistImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Artist profile image files upload (mapped 1-to-1 with artistInfo index)' },
                 rewardImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Reward image files upload (all rewards)' },
@@ -48,9 +48,9 @@ export const eventDocs = {
                 description: { type: 'string', example: 'Annual summer live concert and music festival.' },
                 startDate: { type: 'string', format: 'date-time', example: '2026-09-01T18:00:00.000Z' },
                 endDate: { type: 'string', format: 'date-time', example: '2026-09-01T23:00:00.000Z' },
-                ticketPrice: { type: 'number', example: 49.99 },
-                stock: { type: 'integer', example: 100 },
                 priceCategories: {
+
+
                   type: 'array',
                   description: 'Up to 10 price categories',
                   items: {
@@ -189,12 +189,13 @@ export const eventDocs = {
         {
           name: 'ticketAvailability',
           in: 'query',
-          description: 'Filter events by ticket availability (AVAILABLE: stock > 0, SOLD_OUT: stock = 0, FEW_LEFT: stock <= 10)',
+          description: 'Filter events by ticket category availability (AVAILABLE: category stock > 0, SOLD_OUT: category stock = 0, FEW_LEFT: category stock <= 10)',
           schema: {
             type: 'string',
             enum: ['AVAILABLE', 'SOLD_OUT', 'FEW_LEFT'],
           },
         },
+
         {
           name: 'rewardsAvailable',
           in: 'query',
@@ -277,12 +278,13 @@ export const eventDocs = {
         {
           name: 'ticketAvailability',
           in: 'query',
-          description: 'Filter events by ticket availability (AVAILABLE: stock > 0, SOLD_OUT: stock = 0, FEW_LEFT: stock <= 10)',
+          description: 'Filter events by ticket category availability (AVAILABLE: category stock > 0, SOLD_OUT: category stock = 0, FEW_LEFT: category stock <= 10)',
           schema: {
             type: 'string',
             enum: ['AVAILABLE', 'SOLD_OUT', 'FEW_LEFT'],
           },
         },
+
         {
           name: 'rewardsAvailable',
           in: 'query',
@@ -369,8 +371,6 @@ export const eventDocs = {
                 description: { type: 'string' },
                 startDate: { type: 'string', format: 'date-time' },
                 endDate: { type: 'string', format: 'date-time' },
-                ticketPrice: { type: 'number' },
-                stock: { type: 'integer' },
                 images: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Event main image files upload' },
                 artistImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Artist profile image files upload (mapped 1-to-1 with artistInfo index)' },
                 rewardImages: { type: 'array', items: { type: 'string', format: 'binary' }, description: 'Reward image files upload (all rewards)' },
@@ -394,9 +394,9 @@ export const eventDocs = {
                 description: { type: 'string' },
                 startDate: { type: 'string', format: 'date-time' },
                 endDate: { type: 'string', format: 'date-time' },
-                ticketPrice: { type: 'number' },
-                stock: { type: 'integer' },
                 images: { type: 'array', items: { type: 'string' } },
+
+
                 artistInfo: { type: 'array', items: { type: 'object' } },
                 rewards: { type: 'array', items: { type: 'object' } },
               },

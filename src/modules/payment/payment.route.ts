@@ -2,12 +2,23 @@ import { Router } from 'express';
 import { PaymentController } from './payment.controller.js';
 import { protect, authorizeRoles } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
-import { createConnectAccountSchema } from './payment.validation.js';
+import {
+  createConnectAccountSchema,
+  createCheckoutSessionSchema,
+} from './payment.validation.js';
 
 const router = Router();
 
 // Stripe Webhook (Public, signature verified)
 router.post('/webhook', PaymentController.handleWebhook);
+
+// Create Stripe Checkout Session for Event Ticket Purchase
+router.post(
+  '/create-checkout-session',
+  protect,
+  validateRequest(createCheckoutSessionSchema),
+  PaymentController.createCheckoutSession
+);
 
 // Host Stripe Connect Account Onboarding
 router.post(
@@ -35,3 +46,4 @@ router.post(
 );
 
 export const paymentRoutes = router;
+
