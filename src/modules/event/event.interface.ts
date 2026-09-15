@@ -80,6 +80,9 @@ export interface EventQuery {
   maxPrice?: number | string;
   ticketAvailability?: 'AVAILABLE' | 'SOLD_OUT' | 'FEW_LEFT' | string;
   rewardsAvailable?: boolean | string;
+  includePast?: boolean | string;
+  status?: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'ALL' | string;
+  isEnded?: boolean | string;
 }
 
 
