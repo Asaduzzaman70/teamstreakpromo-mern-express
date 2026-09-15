@@ -88,6 +88,13 @@ const EventOrderSchema = new Schema<IEventOrder>(
       type: String,
       trim: true,
     },
+    stripeRefundId: {
+      type: String,
+      trim: true,
+    },
+    cancelledAt: {
+      type: Date,
+    },
     pointsEarned: {
       type: Number,
       default: 0,

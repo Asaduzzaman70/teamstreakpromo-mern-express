@@ -1,6 +1,7 @@
 import { Event } from './event.model.js';
 import { Category } from '../category/category.model.js';
 import { User } from '../auth/auth.model.js';
+import { EventOrder } from '../eventOrder/eventOrder.model.js';
 import { AppError } from '../../utils/AppError.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
@@ -741,6 +742,31 @@ export const deleteEventService = async (
   }
 
   await Event.findByIdAndDelete(id);
+
+  // Cancel associated paid ticket orders & deduct points earned by users for this event
+  const paidOrders = await EventOrder.find({
+    eventId: event._id,
+    status: { $in: ['PAID', 'COMPLETED'] },
+  });
+
+  for (const order of paidOrders) {
+    const pointsToDeduct =
+      order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
+        ? order.pointsEarned
+        : order.totalTicketQuantity || 0;
+
+    if (pointsToDeduct > 0) {
+      const buyer = await User.findById(order.user);
+      if (buyer) {
+        buyer.totalPoints = Math.max(0, (buyer.totalPoints || 0) - pointsToDeduct);
+        await buyer.save();
+      }
+    }
+
+    order.status = 'CANCELLED';
+    order.cancelledAt = new Date();
+    await order.save();
+  }
 
   // Delete all event images from S3
   const imagesToDelete = [

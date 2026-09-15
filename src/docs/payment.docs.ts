@@ -632,5 +632,71 @@ export const paymentDocs = {
       },
     },
   },
+  '/api/payments/event-orders/{orderId}/cancel': {
+    post: {
+      tags: ['Payments'],
+      summary: 'Cancel Event Ticket Order & Refund Money via Stripe',
+      description:
+        'Cancels a paid event ticket order, issues a full Stripe refund, restores ticket stock in event price categories, and reverts buyer points. Ticket cancellation is allowed strictly up to 10 minutes prior to event.startDate.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          name: 'orderId',
+          in: 'path',
+          required: true,
+          description: 'MongoDB ObjectId of the EventOrder',
+          schema: {
+            type: 'string',
+            example: '66e500000000000000000099',
+          },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Event ticket order cancelled and full refund issued successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Event ticket order cancelled and full refund issued successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      orderId: { type: 'string', example: '66e500000000000000000099' },
+                      eventId: { type: 'string', example: '66e500000000000000000001' },
+                      eventTitle: { type: 'string', example: 'Summer Music Fest' },
+                      totalAmountRefunded: { type: 'number', example: 99.98 },
+                      totalTicketsCancelled: { type: 'number', example: 2 },
+                      stripeRefundId: { type: 'string', example: 're_1OuX992eZvKYlo2C' },
+                      cancelledAt: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': {
+          description: 'Bad Request - Cancellation deadline passed (<10 mins before event.startDate) or order already cancelled',
+        },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+        },
+        '403': {
+          description: 'Forbidden - User is not the order owner or Admin',
+        },
+        '404': {
+          description: 'Not Found - Event order not found',
+        },
+      },
+    },
+  },
 };
 
