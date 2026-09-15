@@ -73,6 +73,7 @@ Interactive Swagger UI documentation is available when running the application s
 | `POST` | `/api/payments/events/:eventId/payout` | Trigger payout processing for an ended event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
 | `POST` | `/api/payments/process-payouts` | Sweep and process payouts for all completed ended events | Yes (`ADMIN`) |
 | `GET` | `/api/payments/events/:eventId/payout-status` | Get payout breakdown and status for an event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
+| `POST` | `/api/payments/event-orders/:orderId/cancel` | Cancel ticket order & issue full Stripe refund (10-min cutoff) | Yes (`Bearer <token>`) |
 
 ---
 
@@ -126,6 +127,12 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **Event Reward Multi-Image Support**: Each event reward supports uploading and storing multiple images (stored in `images: string[]` array in `RewardSchema`). Reward image files can be uploaded via `rewardImages` or index-specific field names (`rewardImages_0`, `rewardImages_1`, etc.).
 - **Artist Image File Upload Support**: Artists added dynamically can have profile image files uploaded via `artistImages` array or index-specific field names (`artistImage_0`, `artistImages_0`, `artistImage[0]`, etc.), which are uploaded to AWS S3 and saved in `artist.image`.
 - **S3 File Cleanup**: When updating an event, any previously uploaded S3 image URLs (event main images, artist images, reward images array) that are replaced or removed are automatically deleted from AWS S3 via `deleteFromS3`. Similarly, deleting an event cleans up all associated images from S3.
+
+### Event Ticket Order Cancellation & Refund Rules
+- **10-Minute Cutoff Constraint**: Users can cancel paid ticket orders strictly **up to 10 minutes prior to `event.startDate`**. If `Date.now() > event.startDate - 10 minutes`, cancellation is rejected (`400 Bad Request`).
+- **Stripe Refund**: Invokes `stripe.refunds.create({ payment_intent: paymentIntentId })` via the associated Stripe Checkout Session to issue a full monetary refund.
+- **Inventory Restoration & Points Reversal**: Automatically restores ticket stock quantities in `event.priceCategories` and deducts the reward points earned (`user.totalPoints -= order.pointsEarned`).
+- **Endpoints**: `POST /api/payments/event-orders/:orderId/cancel` and `POST /api/event-orders/:orderId/cancel`.
 
 ### Business Profile & Host Registration Rules
 - **Host / Business Registration Verification**: When registering a user with role `HOST` or `BUSINESS`, `businessName`, `businessDescription`, `location`, `govtIdFrontImage`, and `govtIdBackImage` are required.

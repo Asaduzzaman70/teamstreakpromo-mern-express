@@ -69,5 +69,12 @@ router.get(
   PaymentController.getEventPayoutStatus
 );
 
+// Cancel event ticket order & issue full refund (User/Admin)
+router.post(
+  '/event-orders/:orderId/cancel',
+  protect,
+  PaymentController.cancelEventOrder
+);
+
 export const paymentRoutes = router;
 

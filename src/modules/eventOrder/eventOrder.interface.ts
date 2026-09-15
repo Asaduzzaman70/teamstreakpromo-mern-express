@@ -23,7 +23,9 @@ export interface IEventOrder extends Document {
   payoutStatus?: EventOrderPayoutStatus;
   hostPayoutAmount?: number;
   platformFeeAmount?: number;
-  stripeTransferId?: string;
+  stripeTransferId?: string | undefined;
+  stripeRefundId?: string | undefined;
+  cancelledAt?: Date | undefined;
   pointsEarned: number;
   createdAt: Date;
   updatedAt: Date;
