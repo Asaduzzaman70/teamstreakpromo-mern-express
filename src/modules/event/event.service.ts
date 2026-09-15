@@ -542,10 +542,27 @@ export const getAllEventsService = async (
   query: EventQuery
 ): Promise<{ meta: IMeta; result: IEvent[] }> => {
 
-  const filter: Record<string, any> = {
-    // Only send events whose end date time is greater than current time
-    endDate: { $gt: new Date() },
-  };
+  const filter: Record<string, any> = {};
+
+  const statusUpper = (query.status || '').toString().trim().toUpperCase();
+  const isIncludePast =
+    query.includePast === true ||
+    query.includePast === 'true' ||
+    statusUpper === 'ALL' ||
+    statusUpper === 'COMPLETED';
+
+  const isOnlyEnded =
+    query.isEnded === true ||
+    query.isEnded === 'true' ||
+    statusUpper === 'ENDED' ||
+    statusUpper === 'EXPIRED';
+
+  if (isOnlyEnded) {
+    filter.endDate = { $lte: new Date() };
+  } else if (!isIncludePast) {
+    // By default, only send active events whose end date time is greater than current time
+    filter.endDate = { $gt: new Date() };
+  }
 
   if (query.search) {
     filter.$or = [
