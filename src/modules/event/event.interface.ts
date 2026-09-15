@@ -27,6 +27,8 @@ export interface IReward {
   images: string[];
 }
 
+export type EventPayoutStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
+
 export interface IEvent extends Document {
   hostId: Types.ObjectId;
   categoryId: Types.ObjectId;
@@ -42,6 +44,12 @@ export interface IEvent extends Document {
   images: string[];
   artistInfo: IArtistInfo[];
   rewards: IReward[];
+  payoutStatus: EventPayoutStatus;
+  payoutAmount: number;
+  platformFeeAmount: number;
+  stripeTransferId?: string | undefined;
+  payoutError?: string | undefined;
+  paidOutAt?: Date | undefined;
   createdAt: Date;
   updatedAt: Date;
 }

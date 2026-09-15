@@ -446,5 +446,191 @@ export const paymentDocs = {
       },
     },
   },
+  '/api/payments/events/{eventId}/payout': {
+    post: {
+      tags: ['Payments'],
+      summary: 'Trigger Payout for Completed Event',
+      description:
+        'Calculates total ticket revenue minus $0.99 platform fee per ticket sold and transfers net payout directly to host Stripe Connect Express account for an ended event.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          name: 'eventId',
+          in: 'path',
+          required: true,
+          description: 'MongoDB ObjectId of the ended Event',
+          schema: {
+            type: 'string',
+            example: '66e500000000000000000001',
+          },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Event payout processed successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Event payout processed successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      eventId: { type: 'string', example: '66e500000000000000000001' },
+                      payoutStatus: { type: 'string', example: 'COMPLETED' },
+                      totalOrders: { type: 'number', example: 5 },
+                      totalTicketsSold: { type: 'number', example: 10 },
+                      totalRevenue: { type: 'number', example: 500.0 },
+                      platformFeeAmount: { type: 'number', example: 9.9 },
+                      hostPayoutAmount: { type: 'number', example: 490.1 },
+                      stripeTransferId: { type: 'string', example: 'tr_1OuX992eZvKYlo2C' },
+                      paidOutAt: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': {
+          description: 'Bad Request - Event has not ended or host has no connected Stripe account',
+        },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+        },
+        '403': {
+          description: 'Forbidden - User is not the event host or Admin',
+        },
+        '404': {
+          description: 'Not Found - Event not found',
+        },
+      },
+    },
+  },
+  '/api/payments/process-payouts': {
+    post: {
+      tags: ['Payments'],
+      summary: 'Sweep and Trigger Payouts for All Completed Events (Admin Only)',
+      description:
+        'Admin endpoint to manually trigger batch payout processing for all completed events whose end dates have passed and payouts are pending/failed.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Completed event payouts sweep executed successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Completed event payouts sweep executed successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      processedCount: { type: 'number', example: 2 },
+                      results: {
+                        type: 'array',
+                        items: { type: 'object' },
+                      },
+                      errors: {
+                        type: 'array',
+                        items: { type: 'object' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+        },
+        '403': {
+          description: 'Forbidden - Requires ADMIN role',
+        },
+      },
+    },
+  },
+  '/api/payments/events/{eventId}/payout-status': {
+    get: {
+      tags: ['Payments'],
+      summary: 'Get Event Payout Status & Breakdown',
+      description:
+        'Retrieves payout status, ticket sales summary, platform fee ($0.99/ticket), net host payout, transfer ID, and host Stripe account status for an event.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          name: 'eventId',
+          in: 'path',
+          required: true,
+          description: 'MongoDB ObjectId of the Event',
+          schema: {
+            type: 'string',
+            example: '66e500000000000000000001',
+          },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Event payout status retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Event payout status retrieved successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      eventId: { type: 'string', example: '66e500000000000000000001' },
+                      eventTitle: { type: 'string', example: 'Summer Music Fest' },
+                      endDate: { type: 'string', format: 'date-time' },
+                      isEventEnded: { type: 'boolean', example: true },
+                      payoutStatus: { type: 'string', example: 'COMPLETED' },
+                      totalTicketsSold: { type: 'number', example: 10 },
+                      totalRevenue: { type: 'number', example: 500.0 },
+                      platformFeeAmount: { type: 'number', example: 9.9 },
+                      hostPayoutAmount: { type: 'number', example: 490.1 },
+                      stripeTransferId: { type: 'string', example: 'tr_1OuX992eZvKYlo2C' },
+                      hostStripeAccountId: { type: 'string', example: 'acct_1OuX992eZvKYlo2C' },
+                      isHostStripeVerified: { type: 'boolean', example: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '401': {
+          description: 'Unauthorized - Missing or invalid token',
+        },
+        '403': {
+          description: 'Forbidden - User is not the event host or Admin',
+        },
+        '404': {
+          description: 'Not Found - Event not found',
+        },
+      },
+    },
+  },
 };
 

@@ -9,6 +9,8 @@ export interface IEventOrderTicket {
   quantity: number;
 }
 
+export type EventOrderPayoutStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED';
+
 export interface IEventOrder extends Document {
   user: Types.ObjectId;
   hostId: Types.ObjectId;
@@ -18,6 +20,10 @@ export interface IEventOrder extends Document {
   totalAmount: number;
   stripeSessionId?: string;
   status: EventOrderStatus;
+  payoutStatus?: EventOrderPayoutStatus;
+  hostPayoutAmount?: number;
+  platformFeeAmount?: number;
+  stripeTransferId?: string;
   pointsEarned: number;
   createdAt: Date;
   updatedAt: Date;

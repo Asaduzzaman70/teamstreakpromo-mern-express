@@ -46,3 +46,33 @@ export interface IWebhookResponse {
   eventType?: string;
 }
 
+export interface IEventPayoutResponse {
+  eventId: string;
+  payoutStatus: string;
+  totalOrders: number;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  platformFeeAmount: number;
+  hostPayoutAmount: number;
+  stripeTransferId?: string | undefined;
+  payoutError?: string | undefined;
+  paidOutAt?: Date | undefined;
+}
+
+export interface IEventPayoutStatusResponse {
+  eventId: string;
+  eventTitle: string;
+  endDate: Date;
+  isEventEnded: boolean;
+  payoutStatus: string;
+  totalTicketsSold: number;
+  totalRevenue: number;
+  platformFeeAmount: number;
+  hostPayoutAmount: number;
+  stripeTransferId?: string | undefined;
+  payoutError?: string | undefined;
+  paidOutAt?: Date | undefined;
+  hostStripeAccountId?: string | undefined;
+  isHostStripeVerified?: boolean | undefined;
+}
+
