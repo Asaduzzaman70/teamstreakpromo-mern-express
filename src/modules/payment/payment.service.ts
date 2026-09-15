@@ -17,6 +17,7 @@ import type {
   IWebhookResponse,
   IEventPayoutResponse,
   IEventPayoutStatusResponse,
+  ICancelEventOrderResponse,
 } from './payment.interface.js';
 import type { StripeAccountStatus } from '../businessProfile/businessProfile.interface.js';
 
@@ -855,6 +856,134 @@ const getEventPayoutStatus = async (
   };
 };
 
+/**
+ * Cancels a paid event ticket order and issues a full refund via Stripe.
+ * Ticket cancellation is strictly allowed only up to 10 minutes before the event start time.
+ */
+const cancelEventOrder = async (
+  orderId: string,
+  userId: string,
+  userRole?: string
+): Promise<ICancelEventOrderResponse> => {
+  const order = await EventOrder.findById(orderId);
+  if (!order) {
+    throw new AppError('Event order not found', 404);
+  }
+
+  // Verify ownership or ADMIN authorization
+  if (order.user.toString() !== userId && userRole !== 'ADMIN') {
+    throw new AppError('Forbidden: You are not authorized to cancel this ticket order', 403);
+  }
+
+  if (order.status === 'CANCELLED') {
+    throw new AppError('This ticket order has already been cancelled', 400);
+  }
+
+  if (order.status !== 'PAID') {
+    throw new AppError(`Ticket order cannot be cancelled in its current status: '${order.status}'`, 400);
+  }
+
+  const eventDoc = await Event.findById(order.eventId);
+  if (!eventDoc) {
+    throw new AppError('Associated event not found', 404);
+  }
+
+  // Validate 10-minute cancellation cutoff time prior to event.startDate
+  const eventStartTime = new Date(eventDoc.startDate).getTime();
+  const tenMinutesInMs = 10 * 60 * 1000;
+  const cutoffTime = eventStartTime - tenMinutesInMs;
+  const currentTime = Date.now();
+
+  if (currentTime > cutoffTime) {
+    throw new AppError(
+      'Ticket cancellation deadline has passed. Tickets can only be cancelled at least 10 minutes prior to the event start time.',
+      400
+    );
+  }
+
+  let stripeRefundId: string | undefined;
+
+  // Process Stripe refund if amount > 0 and stripeSessionId is present
+  if (order.totalAmount > 0 && order.stripeSessionId) {
+    checkStripeConfig();
+
+    try {
+      const session = await stripe.checkout.sessions.retrieve(order.stripeSessionId);
+      const paymentIntentId =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+
+      if (!paymentIntentId) {
+        throw new AppError('Stripe PaymentIntent ID not found for issuing refund', 400);
+      }
+
+      const refund = await stripe.refunds.create({
+        payment_intent: paymentIntentId,
+        reason: 'requested_by_customer',
+        metadata: {
+          eventOrderId: order._id.toString(),
+          userId: order.user.toString(),
+          eventId: eventDoc._id.toString(),
+        },
+      });
+
+      stripeRefundId = refund.id;
+    } catch (err: any) {
+      if (err instanceof AppError) throw err;
+      console.error(`[Stripe Refund Error]: ${err.message}`);
+      throw new AppError(`Stripe Refund Failed: ${err.message}`, 500);
+    }
+  }
+
+  // Restore ticket stock in event price categories
+  if (order.tickets && order.tickets.length > 0 && eventDoc.priceCategories) {
+    for (const ticketItem of order.tickets) {
+      const targetCategory = eventDoc.priceCategories.find(
+        (pc: any) =>
+          (ticketItem.priceCategoryId && pc._id?.toString() === ticketItem.priceCategoryId.toString()) ||
+          (pc.name && pc.name === ticketItem.categoryName)
+      );
+
+      if (targetCategory) {
+        targetCategory.stock += ticketItem.quantity || 1;
+      } else if (eventDoc.priceCategories[0]) {
+        eventDoc.priceCategories[0].stock += ticketItem.quantity || 1;
+      }
+    }
+    await eventDoc.save();
+  }
+
+  // Revert user points earned from this ticket purchase
+  const pointsToDeduct = order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
+    ? order.pointsEarned
+    : order.totalTicketQuantity || 0;
+
+  if (pointsToDeduct > 0) {
+    const buyer = await User.findById(order.user);
+    if (buyer) {
+      buyer.totalPoints = Math.max(0, (buyer.totalPoints || 0) - pointsToDeduct);
+      await buyer.save();
+    }
+  }
+
+  // Update order status
+  order.status = 'CANCELLED';
+  order.stripeRefundId = stripeRefundId;
+  order.cancelledAt = new Date();
+  await order.save();
+
+  return {
+    orderId: order._id.toString(),
+    eventId: eventDoc._id.toString(),
+    eventTitle: eventDoc.title,
+    totalAmountRefunded: order.totalAmount || 0,
+    totalTicketsCancelled: order.totalTicketQuantity || 1,
+    stripeRefundId,
+    cancelledAt: order.cancelledAt,
+  };
+};
+
 export const PaymentService = {
   createConnectAccount,
   createCheckoutSession,
@@ -864,5 +993,6 @@ export const PaymentService = {
   processEventPayout,
   processCompletedEventPayouts,
   getEventPayoutStatus,
+  cancelEventOrder,
 };
 
