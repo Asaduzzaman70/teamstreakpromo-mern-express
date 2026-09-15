@@ -69,6 +69,25 @@ const EventOrderSchema = new Schema<IEventOrder>(
       enum: ['PAID', 'CANCELLED', 'COMPLETED'],
       default: 'PAID',
     },
+    payoutStatus: {
+      type: String,
+      enum: ['PENDING', 'COMPLETED', 'SKIPPED'],
+      default: 'PENDING',
+    },
+    hostPayoutAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    platformFeeAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    stripeTransferId: {
+      type: String,
+      trim: true,
+    },
     pointsEarned: {
       type: Number,
       default: 0,
