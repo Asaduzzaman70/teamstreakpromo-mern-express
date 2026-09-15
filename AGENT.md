@@ -70,6 +70,9 @@ Interactive Swagger UI documentation is available when running the application s
 | `GET` | `/api/payments/account-status` | Get host Stripe Connect status & verification | Yes (`HOST`, `BUSINESS`) |
 | `POST` | `/api/payments/create-login-link` | Generate Stripe Express Dashboard login link | Yes (`HOST`, `BUSINESS`) |
 | `POST` | `/api/payments/webhook` | Stripe webhook listener for real-time status synchronization | No (Stripe Signature) |
+| `POST` | `/api/payments/events/:eventId/payout` | Trigger payout processing for an ended event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
+| `POST` | `/api/payments/process-payouts` | Sweep and process payouts for all completed ended events | Yes (`ADMIN`) |
+| `GET` | `/api/payments/events/:eventId/payout-status` | Get payout breakdown and status for an event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
 
 ---
 
@@ -133,6 +136,10 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **Bank Account & Identity Verification**: The host accesses the returned Stripe-hosted onboarding link to verify identity and link bank details.
 - **Webhook Synchronization**: When Stripe processes host verification or status updates, `account.updated` webhook events are received at `POST /api/payments/webhook`, cryptographically verified, and used to update `BusinessProfile` status flags (`isStripeConnected`, `isStripeVerified`, `stripePayoutsEnabled`, `stripeChargesEnabled`, `stripeDetailsSubmitted`, and `stripeAccountStatus`).
 - **Host Express Dashboard**: Verified hosts can generate a direct management session to their Stripe Express Dashboard via `POST /api/payments/create-login-link`.
+- **Automated Event Payouts Upon Event Completion**: When an event's `endDate` has passed (`endDate <= new Date()`), ticket revenue is transferred directly to the host's Stripe Connect Express account via `stripe.transfers.create()`.
+- **Platform Fee Calculation**: The platform retains **$0.99 per ticket sold** as a platform fee (`totalTicketQuantity * 0.99`). Net host payout equals `Total Revenue - Platform Fee`.
+- **Direct Bank Payouts**: Funds transferred to the host's Stripe Express account are automatically paid out to their connected bank account on Stripe's standard rolling payout schedule (daily/2 business days).
+- **Background Payout Scheduler**: Background scheduler (`payout.scheduler.ts`) automatically sweeps and processes eligible completed events periodically. Manual trigger endpoints (`POST /api/payments/events/:eventId/payout` and `POST /api/payments/process-payouts`) allow hosts and admins to trigger or check payouts on demand.
 
 ### Event Listing & Querying Rules
 - **Active Events Only**: `GET /api/events` only returns active events whose `endDate` is strictly greater than the current server date and time (`endDate > new Date()`). Past/expired events are automatically excluded.

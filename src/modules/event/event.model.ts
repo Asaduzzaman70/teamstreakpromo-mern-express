@@ -103,6 +103,32 @@ const EventSchema = new Schema<IEvent>(
       type: [RewardSchema],
       default: [],
     },
+    payoutStatus: {
+      type: String,
+      enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'SKIPPED'],
+      default: 'PENDING',
+    },
+    payoutAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    platformFeeAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    stripeTransferId: {
+      type: String,
+      trim: true,
+    },
+    payoutError: {
+      type: String,
+      trim: true,
+    },
+    paidOutAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,
