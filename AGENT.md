@@ -70,6 +70,10 @@ Interactive Swagger UI documentation is available when running the application s
 | `GET` | `/api/payments/account-status` | Get host Stripe Connect status & verification | Yes (`HOST`, `BUSINESS`) |
 | `POST` | `/api/payments/create-login-link` | Generate Stripe Express Dashboard login link | Yes (`HOST`, `BUSINESS`) |
 | `POST` | `/api/payments/webhook` | Stripe webhook listener for real-time status synchronization | No (Stripe Signature) |
+| `POST` | `/api/payments/events/:eventId/payout` | Trigger payout processing for an ended event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
+| `POST` | `/api/payments/process-payouts` | Sweep and process payouts for all completed ended events | Yes (`ADMIN`) |
+| `GET` | `/api/payments/events/:eventId/payout-status` | Get payout breakdown and status for an event | Yes (`HOST`, `BUSINESS`, `ADMIN`) |
+| `POST` | `/api/payments/event-orders/:orderId/cancel` | Cancel ticket order & issue full Stripe refund (10-min cutoff) | Yes (`Bearer <token>`) |
 
 ---
 
@@ -124,6 +128,12 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **Artist Image File Upload Support**: Artists added dynamically can have profile image files uploaded via `artistImages` array or index-specific field names (`artistImage_0`, `artistImages_0`, `artistImage[0]`, etc.), which are uploaded to AWS S3 and saved in `artist.image`.
 - **S3 File Cleanup**: When updating an event, any previously uploaded S3 image URLs (event main images, artist images, reward images array) that are replaced or removed are automatically deleted from AWS S3 via `deleteFromS3`. Similarly, deleting an event cleans up all associated images from S3.
 
+### Event Ticket Order Cancellation & Refund Rules
+- **10-Minute Cutoff Constraint**: Users can cancel paid ticket orders strictly **up to 10 minutes prior to `event.startDate`**. If `Date.now() > event.startDate - 10 minutes`, cancellation is rejected (`400 Bad Request`).
+- **Stripe Refund**: Invokes `stripe.refunds.create({ payment_intent: paymentIntentId })` via the associated Stripe Checkout Session to issue a full monetary refund.
+- **Inventory Restoration & Points Reversal**: Automatically restores ticket stock quantities in `event.priceCategories` and deducts the reward points earned (`user.totalPoints -= order.pointsEarned`).
+- **Endpoints**: `POST /api/payments/event-orders/:orderId/cancel` and `POST /api/event-orders/:orderId/cancel`.
+
 ### Business Profile & Host Registration Rules
 - **Host / Business Registration Verification**: When registering a user with role `HOST` or `BUSINESS`, `businessName`, `businessDescription`, `location`, `govtIdFrontImage`, and `govtIdBackImage` are required.
 - **Conditional EIN vs. License Images**: User must provide **EITHER** `einNumber` **OR** both `businessLicenseFrontImage` and `businessLicenseBackImage`. If `einNumber` is provided, business license front/back images are optional. If `einNumber` is omitted, both business license front and back images are mandatory.
@@ -133,6 +143,10 @@ The application follows a **Modular Feature Architecture**. Each feature module 
 - **Bank Account & Identity Verification**: The host accesses the returned Stripe-hosted onboarding link to verify identity and link bank details.
 - **Webhook Synchronization**: When Stripe processes host verification or status updates, `account.updated` webhook events are received at `POST /api/payments/webhook`, cryptographically verified, and used to update `BusinessProfile` status flags (`isStripeConnected`, `isStripeVerified`, `stripePayoutsEnabled`, `stripeChargesEnabled`, `stripeDetailsSubmitted`, and `stripeAccountStatus`).
 - **Host Express Dashboard**: Verified hosts can generate a direct management session to their Stripe Express Dashboard via `POST /api/payments/create-login-link`.
+- **Automated Event Payouts Upon Event Completion**: When an event's `endDate` has passed (`endDate <= new Date()`), ticket revenue is transferred directly to the host's Stripe Connect Express account via `stripe.transfers.create()`.
+- **Platform Fee Calculation**: The platform retains **$0.99 per ticket sold** as a platform fee (`totalTicketQuantity * 0.99`). Net host payout equals `Total Revenue - Platform Fee`.
+- **Direct Bank Payouts**: Funds transferred to the host's Stripe Express account are automatically paid out to their connected bank account on Stripe's standard rolling payout schedule (daily/2 business days).
+- **Background Payout Scheduler**: Background scheduler (`payout.scheduler.ts`) automatically sweeps and processes eligible completed events periodically. Manual trigger endpoints (`POST /api/payments/events/:eventId/payout` and `POST /api/payments/process-payouts`) allow hosts and admins to trigger or check payouts on demand.
 
 ### Event Listing & Querying Rules
 - **Active Events Only**: `GET /api/events` only returns active events whose `endDate` is strictly greater than the current server date and time (`endDate > new Date()`). Past/expired events are automatically excluded.

@@ -95,11 +95,105 @@ const handleWebhook = catchAsync(async (req: Request, res: Response): Promise<vo
   });
 });
 
+// @desc    Trigger payout processing for a completed event
+// @route   POST /api/payments/events/:eventId/payout
+// @access  Private (HOST, BUSINESS, ADMIN)
+const processEventPayout = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const eventId = String(req.params.eventId);
+    if (!eventId) {
+      throw new AppError('Event ID is required', 400);
+    }
+
+    // Admins can trigger payout for any event; hosts can trigger for their own events
+    const requestedByUserId = req.user.role === 'ADMIN' ? undefined : req.user.id;
+    const result = await PaymentService.processEventPayout(eventId, requestedByUserId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Event payout processed successfully',
+      data: result,
+    });
+  }
+);
+
+// @desc    Sweep and trigger payout processing for all completed ended events
+// @route   POST /api/payments/process-payouts
+// @access  Private (ADMIN)
+const processCompletedEventPayouts = catchAsync(
+  async (_req: Request, res: Response): Promise<void> => {
+    const result = await PaymentService.processCompletedEventPayouts();
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Completed event payouts sweep executed successfully',
+      data: result,
+    });
+  }
+);
+
+// @desc    Get payout status and breakdown for a specific event
+// @route   GET /api/payments/events/:eventId/payout-status
+// @access  Private (HOST, BUSINESS, ADMIN)
+const getEventPayoutStatus = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const eventId = String(req.params.eventId);
+    if (!eventId) {
+      throw new AppError('Event ID is required', 400);
+    }
+
+    const requestedByUserId = req.user.role === 'ADMIN' ? undefined : req.user.id;
+    const result = await PaymentService.getEventPayoutStatus(eventId, requestedByUserId);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Event payout status retrieved successfully',
+      data: result,
+    });
+  }
+);
+
+// @desc    Cancel an event ticket order and issue a full Stripe refund (must be at least 10 min before event start)
+// @route   POST /api/payments/event-orders/:orderId/cancel
+// @access  Private (Authenticated buyer or ADMIN)
+const cancelEventOrder = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const orderId = String(req.params.orderId);
+    if (!orderId) {
+      throw new AppError('Event order ID is required', 400);
+    }
+
+    const result = await PaymentService.cancelEventOrder(orderId, req.user.id, req.user.role);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Event ticket order cancelled and full refund issued successfully',
+      data: result,
+    });
+  }
+);
+
 export const PaymentController = {
   createConnectAccount,
   createCheckoutSession,
   getAccountStatus,
   createLoginLink,
   handleWebhook,
+  processEventPayout,
+  processCompletedEventPayouts,
+  getEventPayoutStatus,
+  cancelEventOrder,
 };
 

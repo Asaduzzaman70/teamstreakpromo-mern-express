@@ -15,6 +15,9 @@ import type {
   IAccountStatusResponse,
   ICreateLoginLinkResponse,
   IWebhookResponse,
+  IEventPayoutResponse,
+  IEventPayoutStatusResponse,
+  ICancelEventOrderResponse,
 } from './payment.interface.js';
 import type { StripeAccountStatus } from '../businessProfile/businessProfile.interface.js';
 
@@ -605,11 +608,391 @@ const handleWebhook = async (
   };
 };
 
+/**
+ * Processes automated payout for an event whose end date has passed.
+ * Deducts $0.99 per ticket sold as platform fee and transfers remaining ticket revenue
+ * directly to host's connected Stripe Express account.
+ */
+const processEventPayout = async (
+  eventId: string,
+  requestedByUserId?: string
+): Promise<IEventPayoutResponse> => {
+  const eventDoc = await Event.findById(eventId);
+  if (!eventDoc) {
+    throw new AppError('Event not found', 404);
+  }
+
+  if (requestedByUserId && eventDoc.hostId.toString() !== requestedByUserId) {
+    throw new AppError('Not authorized to manage payouts for this event', 403);
+  }
+
+  const now = new Date();
+  if (eventDoc.endDate > now) {
+    throw new AppError(
+      `Event has not ended yet (End Date: ${eventDoc.endDate.toISOString()}). Payouts can only be processed after event completion.`,
+      400
+    );
+  }
+
+  if (eventDoc.payoutStatus === 'COMPLETED' && eventDoc.stripeTransferId) {
+    // Already completed payout, return existing summary
+    const totalOrders = await EventOrder.countDocuments({ eventId: eventDoc._id });
+    const orders = await EventOrder.find({ eventId: eventDoc._id });
+    const totalTicketsSold = orders.reduce((sum, o) => sum + (o.totalTicketQuantity || 0), 0);
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+    return {
+      eventId: eventDoc._id.toString(),
+      payoutStatus: eventDoc.payoutStatus,
+      totalOrders,
+      totalTicketsSold,
+      totalRevenue,
+      platformFeeAmount: eventDoc.platformFeeAmount || 0,
+      hostPayoutAmount: eventDoc.payoutAmount || 0,
+      stripeTransferId: eventDoc.stripeTransferId || undefined,
+      payoutError: eventDoc.payoutError || undefined,
+      paidOutAt: eventDoc.paidOutAt || undefined,
+    };
+  }
+
+  // Update status to PROCESSING
+  eventDoc.payoutStatus = 'PROCESSING';
+  await eventDoc.save();
+
+  // Aggregate all paid or completed orders for this event
+  const orders = await EventOrder.find({
+    eventId: eventDoc._id,
+    status: { $in: ['PAID', 'COMPLETED'] },
+  });
+
+  const totalTicketsSold = orders.reduce((sum, o) => sum + (o.totalTicketQuantity || 0), 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+  // Platform fee is $0.99 per ticket sold
+  const platformFeeAmount = Math.round(totalTicketsSold * 0.99 * 100) / 100;
+  const hostPayoutAmount = Math.max(0, Math.round((totalRevenue - platformFeeAmount) * 100) / 100);
+
+  // If no tickets sold or no revenue to payout
+  if (totalTicketsSold === 0 || totalRevenue === 0 || hostPayoutAmount <= 0) {
+    eventDoc.payoutStatus = 'SKIPPED';
+    eventDoc.payoutAmount = 0;
+    eventDoc.platformFeeAmount = 0;
+    eventDoc.paidOutAt = new Date();
+    eventDoc.payoutError = '';
+    await eventDoc.save();
+
+    for (const order of orders) {
+      order.status = 'COMPLETED';
+      order.payoutStatus = 'SKIPPED';
+      order.platformFeeAmount = 0;
+      order.hostPayoutAmount = 0;
+      await order.save();
+    }
+
+    return {
+      eventId: eventDoc._id.toString(),
+      payoutStatus: 'SKIPPED',
+      totalOrders: orders.length,
+      totalTicketsSold,
+      totalRevenue,
+      platformFeeAmount: 0,
+      hostPayoutAmount: 0,
+      paidOutAt: eventDoc.paidOutAt || undefined,
+    };
+  }
+
+  // Retrieve Host's Business Profile & Stripe account details
+  const businessProfile = await BusinessProfile.findOne({ userId: eventDoc.hostId });
+  if (!businessProfile || !businessProfile.stripeAccountId || !businessProfile.isStripeConnected) {
+    const errorMsg = 'Host has not created or connected a Stripe Express account. Payout cannot be processed.';
+    eventDoc.payoutStatus = 'FAILED';
+    eventDoc.payoutError = errorMsg;
+    await eventDoc.save();
+    throw new AppError(errorMsg, 400);
+  }
+
+  checkStripeConfig();
+
+  try {
+    // Transfer funds from main platform balance to Host's Stripe Connect Express account
+    const transfer = await stripe.transfers.create({
+      amount: Math.round(hostPayoutAmount * 100), // amount in cents
+      currency: 'usd',
+      destination: businessProfile.stripeAccountId,
+      description: `Payout for Event: "${eventDoc.title}" (Event ID: ${eventDoc._id})`,
+      metadata: {
+        eventId: eventDoc._id.toString(),
+        hostId: eventDoc.hostId.toString(),
+        totalOrders: orders.length.toString(),
+        totalTicketsSold: totalTicketsSold.toString(),
+        totalRevenue: totalRevenue.toFixed(2),
+        platformFeeAmount: platformFeeAmount.toFixed(2),
+        hostPayoutAmount: hostPayoutAmount.toFixed(2),
+      },
+    });
+
+    // Update Event document
+    eventDoc.payoutStatus = 'COMPLETED';
+    eventDoc.payoutAmount = hostPayoutAmount;
+    eventDoc.platformFeeAmount = platformFeeAmount;
+    eventDoc.stripeTransferId = transfer.id;
+    eventDoc.paidOutAt = new Date();
+    eventDoc.payoutError = '';
+    await eventDoc.save();
+
+    // Update individual EventOrder documents
+    for (const order of orders) {
+      const orderTickets = order.totalTicketQuantity || 1;
+      const orderFee = Math.round(orderTickets * 0.99 * 100) / 100;
+      const orderHostPayout = Math.max(0, Math.round(((order.totalAmount || 0) - orderFee) * 100) / 100);
+
+      order.status = 'COMPLETED';
+      order.payoutStatus = 'COMPLETED';
+      order.platformFeeAmount = orderFee;
+      order.hostPayoutAmount = orderHostPayout;
+      order.stripeTransferId = transfer.id;
+      await order.save();
+    }
+
+    return {
+      eventId: eventDoc._id.toString(),
+      payoutStatus: 'COMPLETED',
+      totalOrders: orders.length,
+      totalTicketsSold,
+      totalRevenue,
+      platformFeeAmount,
+      hostPayoutAmount,
+      stripeTransferId: transfer.id,
+      paidOutAt: eventDoc.paidOutAt || undefined,
+    };
+  } catch (err: any) {
+    const errorMsg = err.message || 'Stripe transfer failed';
+    eventDoc.payoutStatus = 'FAILED';
+    eventDoc.payoutError = errorMsg;
+    await eventDoc.save();
+    throw new AppError(`Event Payout Failed: ${errorMsg}`, 500);
+  }
+};
+
+/**
+ * Sweep function that finds all ended events with pending payouts and processes them.
+ */
+const processCompletedEventPayouts = async (): Promise<{
+  processedCount: number;
+  results: IEventPayoutResponse[];
+  errors: Array<{ eventId: string; error: string }>;
+}> => {
+  const now = new Date();
+  const eligibleEvents = await Event.find({
+    endDate: { $lte: now },
+    payoutStatus: { $in: ['PENDING', 'FAILED'] },
+  });
+
+  const results: IEventPayoutResponse[] = [];
+  const errors: Array<{ eventId: string; error: string }> = [];
+
+  for (const eventDoc of eligibleEvents) {
+    try {
+      const res = await processEventPayout(eventDoc._id.toString());
+      results.push(res);
+    } catch (err: any) {
+      errors.push({
+        eventId: eventDoc._id.toString(),
+        error: err.message || 'Payout processing failed',
+      });
+    }
+  }
+
+  return {
+    processedCount: eligibleEvents.length,
+    results,
+    errors,
+  };
+};
+
+/**
+ * Gets payout status breakdown for a specific event.
+ */
+const getEventPayoutStatus = async (
+  eventId: string,
+  requestedByUserId?: string
+): Promise<IEventPayoutStatusResponse> => {
+  const eventDoc = await Event.findById(eventId);
+  if (!eventDoc) {
+    throw new AppError('Event not found', 404);
+  }
+
+  if (requestedByUserId && eventDoc.hostId.toString() !== requestedByUserId) {
+    throw new AppError('Not authorized to view payout status for this event', 403);
+  }
+
+  const orders = await EventOrder.find({
+    eventId: eventDoc._id,
+    status: { $in: ['PAID', 'COMPLETED'] },
+  });
+
+  const totalTicketsSold = orders.reduce((sum, o) => sum + (o.totalTicketQuantity || 0), 0);
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const platformFeeAmount = eventDoc.platformFeeAmount || Math.round(totalTicketsSold * 0.99 * 100) / 100;
+  const hostPayoutAmount = eventDoc.payoutAmount || Math.max(0, Math.round((totalRevenue - platformFeeAmount) * 100) / 100);
+
+  const businessProfile = await BusinessProfile.findOne({ userId: eventDoc.hostId });
+
+  return {
+    eventId: eventDoc._id.toString(),
+    eventTitle: eventDoc.title,
+    endDate: eventDoc.endDate,
+    isEventEnded: new Date(eventDoc.endDate) <= new Date(),
+    payoutStatus: eventDoc.payoutStatus || 'PENDING',
+    totalTicketsSold,
+    totalRevenue,
+    platformFeeAmount,
+    hostPayoutAmount,
+    stripeTransferId: eventDoc.stripeTransferId || undefined,
+    payoutError: eventDoc.payoutError || undefined,
+    paidOutAt: eventDoc.paidOutAt || undefined,
+    hostStripeAccountId: businessProfile?.stripeAccountId || undefined,
+    isHostStripeVerified: businessProfile?.isStripeVerified ?? undefined,
+  };
+};
+
+/**
+ * Cancels a paid event ticket order and issues a full refund via Stripe.
+ * Ticket cancellation is strictly allowed only up to 10 minutes before the event start time.
+ */
+const cancelEventOrder = async (
+  orderId: string,
+  userId: string,
+  userRole?: string
+): Promise<ICancelEventOrderResponse> => {
+  const order = await EventOrder.findById(orderId);
+  if (!order) {
+    throw new AppError('Event order not found', 404);
+  }
+
+  // Verify ownership or ADMIN authorization
+  if (order.user.toString() !== userId && userRole !== 'ADMIN') {
+    throw new AppError('Forbidden: You are not authorized to cancel this ticket order', 403);
+  }
+
+  if (order.status === 'CANCELLED') {
+    throw new AppError('This ticket order has already been cancelled', 400);
+  }
+
+  if (order.status !== 'PAID') {
+    throw new AppError(`Ticket order cannot be cancelled in its current status: '${order.status}'`, 400);
+  }
+
+  const eventDoc = await Event.findById(order.eventId);
+  if (!eventDoc) {
+    throw new AppError('Associated event not found', 404);
+  }
+
+  // Validate 10-minute cancellation cutoff time prior to event.startDate
+  const eventStartTime = new Date(eventDoc.startDate).getTime();
+  const tenMinutesInMs = 10 * 60 * 1000;
+  const cutoffTime = eventStartTime - tenMinutesInMs;
+  const currentTime = Date.now();
+
+  if (currentTime > cutoffTime) {
+    throw new AppError(
+      'Ticket cancellation deadline has passed. Tickets can only be cancelled at least 10 minutes prior to the event start time.',
+      400
+    );
+  }
+
+  let stripeRefundId: string | undefined;
+
+  // Process Stripe refund if amount > 0 and stripeSessionId is present
+  if (order.totalAmount > 0 && order.stripeSessionId) {
+    checkStripeConfig();
+
+    try {
+      const session = await stripe.checkout.sessions.retrieve(order.stripeSessionId);
+      const paymentIntentId =
+        typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : session.payment_intent?.id;
+
+      if (!paymentIntentId) {
+        throw new AppError('Stripe PaymentIntent ID not found for issuing refund', 400);
+      }
+
+      const refund = await stripe.refunds.create({
+        payment_intent: paymentIntentId,
+        reason: 'requested_by_customer',
+        metadata: {
+          eventOrderId: order._id.toString(),
+          userId: order.user.toString(),
+          eventId: eventDoc._id.toString(),
+        },
+      });
+
+      stripeRefundId = refund.id;
+    } catch (err: any) {
+      if (err instanceof AppError) throw err;
+      console.error(`[Stripe Refund Error]: ${err.message}`);
+      throw new AppError(`Stripe Refund Failed: ${err.message}`, 500);
+    }
+  }
+
+  // Restore ticket stock in event price categories
+  if (order.tickets && order.tickets.length > 0 && eventDoc.priceCategories) {
+    for (const ticketItem of order.tickets) {
+      const targetCategory = eventDoc.priceCategories.find(
+        (pc: any) =>
+          (ticketItem.priceCategoryId && pc._id?.toString() === ticketItem.priceCategoryId.toString()) ||
+          (pc.name && pc.name === ticketItem.categoryName)
+      );
+
+      if (targetCategory) {
+        targetCategory.stock += ticketItem.quantity || 1;
+      } else if (eventDoc.priceCategories[0]) {
+        eventDoc.priceCategories[0].stock += ticketItem.quantity || 1;
+      }
+    }
+    await eventDoc.save();
+  }
+
+  // Revert user points earned from this ticket purchase
+  const pointsToDeduct = order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
+    ? order.pointsEarned
+    : order.totalTicketQuantity || 0;
+
+  if (pointsToDeduct > 0) {
+    const buyer = await User.findById(order.user);
+    if (buyer) {
+      buyer.totalPoints = Math.max(0, (buyer.totalPoints || 0) - pointsToDeduct);
+      await buyer.save();
+    }
+  }
+
+  // Update order status
+  order.status = 'CANCELLED';
+  order.stripeRefundId = stripeRefundId;
+  order.cancelledAt = new Date();
+  await order.save();
+
+  return {
+    orderId: order._id.toString(),
+    eventId: eventDoc._id.toString(),
+    eventTitle: eventDoc.title,
+    totalAmountRefunded: order.totalAmount || 0,
+    totalTicketsCancelled: order.totalTicketQuantity || 1,
+    stripeRefundId,
+    cancelledAt: order.cancelledAt,
+  };
+};
+
 export const PaymentService = {
   createConnectAccount,
   createCheckoutSession,
   getAccountStatus,
   createLoginLink,
   handleWebhook,
+  processEventPayout,
+  processCompletedEventPayouts,
+  getEventPayoutStatus,
+  cancelEventOrder,
 };
 

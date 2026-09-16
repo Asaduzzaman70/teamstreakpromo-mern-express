@@ -45,5 +45,36 @@ router.post(
   PaymentController.createLoginLink
 );
 
+// Trigger payout for a completed event (Host/Business/Admin)
+router.post(
+  '/events/:eventId/payout',
+  protect,
+  authorizeRoles('HOST', 'BUSINESS', 'ADMIN'),
+  PaymentController.processEventPayout
+);
+
+// Sweep and process payouts for all completed ended events (Admin)
+router.post(
+  '/process-payouts',
+  protect,
+  authorizeRoles('ADMIN'),
+  PaymentController.processCompletedEventPayouts
+);
+
+// Get payout status and breakdown for an event (Host/Business/Admin)
+router.get(
+  '/events/:eventId/payout-status',
+  protect,
+  authorizeRoles('HOST', 'BUSINESS', 'ADMIN'),
+  PaymentController.getEventPayoutStatus
+);
+
+// Cancel event ticket order & issue full refund (User/Admin)
+router.post(
+  '/event-orders/:orderId/cancel',
+  protect,
+  PaymentController.cancelEventOrder
+);
+
 export const paymentRoutes = router;
 
