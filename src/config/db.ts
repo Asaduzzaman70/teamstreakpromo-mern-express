@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import config from './config.js';
+import logger from '../utils/logger.js';
 
 let cachedPromise: Promise<typeof mongoose> | null = null;
 
@@ -12,12 +13,12 @@ export const connectDB = async (): Promise<typeof mongoose> => {
     cachedPromise = mongoose
       .connect(config.mongoUri)
       .then((m) => {
-        console.log(`[database]: MongoDB Connected: ${m.connection.host}`);
+        logger.info(`[database]: MongoDB Connected: ${m.connection.host}`);
         return m;
       })
       .catch((error) => {
         cachedPromise = null;
-        console.error(`[database]: Connection Error: ${(error as Error).message}`);
+        logger.error(`[database]: Connection Error: ${(error as Error).message}`);
         throw error;
       });
   }
