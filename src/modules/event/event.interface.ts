@@ -50,6 +50,7 @@ export interface IEvent extends Document {
   stripeTransferId?: string | undefined;
   payoutError?: string | undefined;
   paidOutAt?: Date | undefined;
+  ticketsSold?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -81,6 +82,7 @@ export interface EventQuery {
   ticketAvailability?: 'AVAILABLE' | 'SOLD_OUT' | 'FEW_LEFT' | string;
   rewardsAvailable?: boolean | string;
   includePast?: boolean | string;
+  past?: boolean | string;
   status?: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'ALL' | string;
   isEnded?: boolean | string;
 }
