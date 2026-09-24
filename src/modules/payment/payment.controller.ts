@@ -161,6 +161,30 @@ const getEventPayoutStatus = catchAsync(
   }
 );
 
+// @desc    Cancel an event ticket order and issue a full Stripe refund (must be at least 10 min before event start)
+// @route   POST /api/payments/event-orders/:orderId/cancel
+// @access  Private (Authenticated buyer or ADMIN)
+const cancelEventOrder = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const orderId = String(req.params.orderId);
+    if (!orderId) {
+      throw new AppError('Event order ID is required', 400);
+    }
+
+    const result = await PaymentService.cancelEventOrder(orderId, req.user.id, req.user.role);
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Event ticket order cancelled and full refund issued successfully',
+      data: result,
+    });
+  }
+);
+
 export const PaymentController = {
   createConnectAccount,
   createCheckoutSession,
@@ -170,5 +194,6 @@ export const PaymentController = {
   processEventPayout,
   processCompletedEventPayouts,
   getEventPayoutStatus,
+  cancelEventOrder,
 };
 

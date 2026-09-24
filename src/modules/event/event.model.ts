@@ -135,4 +135,7 @@ const EventSchema = new Schema<IEvent>(
   }
 );
 
+EventSchema.index({ hostId: 1, createdAt: -1 });
+
 export const Event = model<IEvent>('Event', EventSchema);
+

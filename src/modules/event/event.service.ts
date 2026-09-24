@@ -1,6 +1,7 @@
 import { Event } from './event.model.js';
 import { Category } from '../category/category.model.js';
 import { User } from '../auth/auth.model.js';
+import { EventOrder } from '../eventOrder/eventOrder.model.js';
 import { AppError } from '../../utils/AppError.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
@@ -73,6 +74,20 @@ export const createEventService = async (
   data: CreateEventInput,
   files?: { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[]
 ): Promise<IEvent> => {
+  // Check monthly event creation limit (Max 30 events per host per calendar month)
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const monthlyEventCount = await Event.countDocuments({
+    hostId,
+    createdAt: { $gte: startOfMonth, $lte: endOfMonth },
+  });
+
+  if (monthlyEventCount >= 30) {
+    throw new AppError('Monthly limit reached. You cannot create more than 30 events in a single month.', 400);
+  }
+
   const targetSubCategoryId = data.subCategoryId || data.categoryId;
   if (!targetSubCategoryId) {
     throw new AppError('Subcategory ID is required', 400);
@@ -551,7 +566,10 @@ export const getAllEventsService = async (
     statusUpper === 'ALL' ||
     statusUpper === 'COMPLETED';
 
+  const isPast = query.past === true || query.past === 'true';
+
   const isOnlyEnded =
+    isPast ||
     query.isEnded === true ||
     query.isEnded === 'true' ||
     statusUpper === 'ENDED' ||
@@ -699,6 +717,38 @@ export const getAllEventsService = async (
   const totalPage = Math.ceil(total / limit);
   const paginatedEvents = candidateEvents.slice(skip, skip + limit);
 
+  const eventIds = paginatedEvents.map((e) => e._id);
+  const ticketSales =
+    eventIds.length > 0
+      ? await EventOrder.aggregate([
+          {
+            $match: {
+              eventId: { $in: eventIds },
+              status: { $ne: 'CANCELLED' },
+            },
+          },
+          {
+            $group: {
+              _id: '$eventId',
+              totalSold: { $sum: '$totalTicketQuantity' },
+            },
+          },
+        ])
+      : [];
+
+  const salesMap = new Map<string, number>();
+  ticketSales.forEach((item) => {
+    salesMap.set(item._id.toString(), item.totalSold || 0);
+  });
+
+  const resultWithTicketsSold = paginatedEvents.map((event) => {
+    const eventObj = event.toObject();
+    return {
+      ...eventObj,
+      ticketsSold: salesMap.get(event._id.toString()) || 0,
+    };
+  });
+
   return {
     meta: {
       page,
@@ -706,14 +756,14 @@ export const getAllEventsService = async (
       total,
       totalPage,
     },
-    result: paginatedEvents,
+    result: resultWithTicketsSold as any,
   };
 };
 
 
 export const getEventByIdService = async (
   id: string
-): Promise<IEvent> => {
+): Promise<IEvent | Record<string, any>> => {
   const event = await Event.findById(id)
     .populate('hostId', 'name email role profileImage')
     .populate('categoryId', 'name description');
@@ -722,7 +772,28 @@ export const getEventByIdService = async (
     throw new AppError('Event not found', 404);
   }
 
-  return event;
+  const ticketSales = await EventOrder.aggregate([
+    {
+      $match: {
+        eventId: event._id,
+        status: { $ne: 'CANCELLED' },
+      },
+    },
+    {
+      $group: {
+        _id: '$eventId',
+        totalSold: { $sum: '$totalTicketQuantity' },
+      },
+    },
+  ]);
+
+  const ticketsSold = ticketSales[0]?.totalSold || 0;
+  const eventObj = event.toObject();
+
+  return {
+    ...eventObj,
+    ticketsSold,
+  };
 };
 
 export const deleteEventService = async (
@@ -741,6 +812,31 @@ export const deleteEventService = async (
   }
 
   await Event.findByIdAndDelete(id);
+
+  // Cancel associated paid ticket orders & deduct points earned by users for this event
+  const paidOrders = await EventOrder.find({
+    eventId: event._id,
+    status: { $in: ['PAID', 'COMPLETED'] },
+  });
+
+  for (const order of paidOrders) {
+    const pointsToDeduct =
+      order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
+        ? order.pointsEarned
+        : order.totalTicketQuantity || 0;
+
+    if (pointsToDeduct > 0) {
+      const buyer = await User.findById(order.user);
+      if (buyer) {
+        buyer.totalPoints = Math.max(0, (buyer.totalPoints || 0) - pointsToDeduct);
+        await buyer.save();
+      }
+    }
+
+    order.status = 'CANCELLED';
+    order.cancelledAt = new Date();
+    await order.save();
+  }
 
   // Delete all event images from S3
   const imagesToDelete = [
@@ -881,6 +977,38 @@ export const getAdminEventsService = async (
     .skip(skip)
     .limit(limit);
 
+  const eventIds = paginatedEvents.map((e) => e._id);
+  const ticketSales =
+    eventIds.length > 0
+      ? await EventOrder.aggregate([
+          {
+            $match: {
+              eventId: { $in: eventIds },
+              status: { $ne: 'CANCELLED' },
+            },
+          },
+          {
+            $group: {
+              _id: '$eventId',
+              totalSold: { $sum: '$totalTicketQuantity' },
+            },
+          },
+        ])
+      : [];
+
+  const salesMap = new Map<string, number>();
+  ticketSales.forEach((item) => {
+    salesMap.set(item._id.toString(), item.totalSold || 0);
+  });
+
+  const resultWithTicketsSold = paginatedEvents.map((event) => {
+    const eventObj = event.toObject();
+    return {
+      ...eventObj,
+      ticketsSold: salesMap.get(event._id.toString()) || 0,
+    };
+  });
+
   return {
     meta: {
       page,
@@ -888,7 +1016,7 @@ export const getAdminEventsService = async (
       total,
       totalPage,
     },
-    result: paginatedEvents,
+    result: resultWithTicketsSold as any,
   };
 };
 

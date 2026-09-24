@@ -1,6 +1,7 @@
 
 import type { Response, Request, NextFunction } from 'express';
 import { AppError } from '../utils/AppError.js';
+import logger from '../utils/logger.js';
 
 export const errorHandler = (
   err: Error | AppError,
@@ -11,9 +12,10 @@ export const errorHandler = (
   const statusCode = (err as AppError).statusCode || (err as any).status || 500;
   const message = err.message || 'Internal Server Error';
 
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error Stack:', err.stack);
-  }
+  logger.error(`[Error] ${req.method} ${req.originalUrl} - ${statusCode} - ${message}`, {
+    stack: err.stack,
+    ip: req.ip,
+  });
 
   res.status(statusCode).json({
     success: false,

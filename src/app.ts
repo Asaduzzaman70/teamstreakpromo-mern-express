@@ -13,6 +13,7 @@ import { MarketplaceRoutes } from './modules/marketplace/marketplace.route.js';
 import { orderRoutes } from './modules/order/order.route.js';
 import { eventOrderRoutes } from './modules/eventOrder/eventOrder.route.js';
 import { setupSwagger } from './docs/swagger.js';
+import requestLogger from './middlewares/requestLogger.js';
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use(
     },
   })
 );
+app.use(requestLogger);
 
 // Ensure Database Connection for every request (Serverless & Traditional Server support)
 app.use(async (req: Request, res: Response, next: NextFunction) => {

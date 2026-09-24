@@ -76,3 +76,13 @@ export interface IEventPayoutStatusResponse {
   isHostStripeVerified?: boolean | undefined;
 }
 
+export interface ICancelEventOrderResponse {
+  orderId: string;
+  eventId: string;
+  eventTitle: string;
+  totalAmountRefunded: number;
+  totalTicketsCancelled: number;
+  stripeRefundId?: string | undefined;
+  cancelledAt: Date;
+}
+
