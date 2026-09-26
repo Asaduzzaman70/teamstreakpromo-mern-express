@@ -64,6 +64,11 @@ const EventOrderSchema = new Schema<IEventOrder>(
       type: String,
       trim: true,
     },
+    qrCode: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     status: {
       type: String,
       enum: ['PAID', 'CANCELLED', 'COMPLETED'],

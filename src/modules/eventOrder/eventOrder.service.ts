@@ -1,4 +1,7 @@
+import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError.js';
+import { generateQRCode } from '../../utils/qrCode.js';
+import logger from '../../utils/logger.js';
 import { Event } from '../event/event.model.js';
 import { EventOrder } from './eventOrder.model.js';
 import type { IEventOrder, IEventOrderTicket } from './eventOrder.interface.js';
@@ -55,13 +58,34 @@ const createEventOrder = async (payload: CreateEventOrderPayload): Promise<IEven
     return item;
   });
 
+  // Generate a unique ObjectId upfront so it can be encoded in the QR code
+  const orderId = new Types.ObjectId();
+
+  const qrData = {
+    orderId: orderId.toString(),
+    eventId: payload.eventId,
+    userId: payload.userId,
+    hostId: payload.hostId,
+    ticketQuantity: payload.totalTicketQuantity,
+    totalAmount: payload.totalAmount,
+    createdAt: new Date().toISOString(),
+  };
+
+  const qrCode = await generateQRCode(
+    qrData,
+    `order-${orderId.toString()}.png`,
+    'qrcodes'
+  );
+
   const createData: any = {
+    _id: orderId,
     user: payload.userId,
     hostId: payload.hostId,
     eventId: payload.eventId,
     tickets: formattedTickets,
     totalTicketQuantity: payload.totalTicketQuantity,
     totalAmount: payload.totalAmount,
+    qrCode,
     status: 'PAID',
     pointsEarned: payload.pointsEarned,
   };
@@ -118,6 +142,25 @@ const getEventOrderById = async (orderId: string, userId: string): Promise<IEven
 
   if (order.user.toString() !== userId && order.hostId.toString() !== userId) {
     throw new AppError('Not authorized to view this event order', 403);
+  }
+
+  // Backfill QR code if missing on legacy orders
+  if (!order.qrCode) {
+    const qrData = {
+      orderId: order._id.toString(),
+      eventId: (order.eventId as any)?._id?.toString() || order.eventId.toString(),
+      userId: order.user.toString(),
+      hostId: order.hostId.toString(),
+      ticketQuantity: order.totalTicketQuantity,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString(),
+    };
+    order.qrCode = await generateQRCode(
+      qrData,
+      `order-${order._id.toString()}.png`,
+      'qrcodes'
+    );
+    await EventOrder.updateOne({ _id: order._id }, { qrCode: order.qrCode });
   }
 
   return order;
