@@ -64,6 +64,12 @@ const EventOrderSchema = new Schema<IEventOrder>(
       type: String,
       trim: true,
     },
+    ticketId: {
+      type: String,
+      default: '',
+      trim: true,
+      index: true,
+    },
     qrCode: {
       type: String,
       default: '',

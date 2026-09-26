@@ -19,6 +19,7 @@ export interface IEventOrder extends Document {
   totalTicketQuantity: number;
   totalAmount: number;
   stripeSessionId?: string;
+  ticketId?: string;
   qrCode?: string;
   status: EventOrderStatus;
   payoutStatus?: EventOrderPayoutStatus;
