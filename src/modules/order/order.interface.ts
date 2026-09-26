@@ -16,6 +16,7 @@ export interface IOrder extends Document {
   itemPoints: number;
   quantity: number;
   status: 'CLAIMED' | 'REDEEMED' | 'CANCELLED';
+  qrCode?: string;
   createdAt: Date;
   updatedAt: Date;
 }

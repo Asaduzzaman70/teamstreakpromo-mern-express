@@ -1,8 +1,11 @@
 import Stripe from 'stripe';
+import { Types } from 'mongoose';
 import config from '../../config/config.js';
 import { BusinessProfile } from '../businessProfile/businessProfile.model.js';
 import { User } from '../auth/auth.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { generateQRCode } from '../../utils/qrCode.js';
+import logger from '../../utils/logger.js';
 import { Event } from '../event/event.model.js';
 import { Order } from '../order/order.model.js';
 import { EventOrder } from '../eventOrder/eventOrder.model.js';
@@ -464,7 +467,40 @@ const handleWebhook = async (
                   reward.stock = Math.max(0, reward.stock - qtyToClaim);
                   await eventDoc.save();
 
+                  const orderId = new Types.ObjectId();
+                  let qrCodeUrl = '';
+                  try {
+                    const hostUser = await User.findById(eventDoc.hostId).populate('businessProfile');
+                    const organizerName =
+                      (hostUser as any)?.businessProfile?.businessName || hostUser?.name || 'Event Organizer';
+
+                    const qrData = {
+                      orderId: orderId.toString(),
+                      itemType: 'EVENT',
+                      eventTitle: eventDoc.title,
+                      rewardTitle: reward.title || eventDoc.title,
+                      description: reward.description || eventDoc.description || '',
+                      location: eventDoc.placeName || '',
+                      organizer: organizerName,
+                      points: reward.pointsRequired || 0,
+                      totalPoints: (reward.pointsRequired || 0) * qtyToClaim,
+                      quantity: qtyToClaim,
+                      status: 'CLAIMED',
+                      userId,
+                      claimedAt: new Date().toISOString(),
+                    };
+
+                    qrCodeUrl = await generateQRCode(
+                      qrData,
+                      `order-${orderId.toString()}.png`,
+                      'qrcodes'
+                    );
+                  } catch (err: any) {
+                    logger.error('[handleWebhook] Error generating QR code for reward order:', err);
+                  }
+
                   const orderData: any = {
+                    _id: orderId,
                     user: userId,
                     itemType: 'EVENT',
                     hostId: eventDoc.hostId,
@@ -473,6 +509,7 @@ const handleWebhook = async (
                     itemPoints: reward.pointsRequired || 0,
                     quantity: qtyToClaim,
                     status: 'CLAIMED',
+                    qrCode: qrCodeUrl,
                   };
                   await Order.create(orderData);
                 }

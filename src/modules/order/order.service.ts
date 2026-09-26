@@ -1,5 +1,9 @@
+import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError.js';
+import { generateQRCode } from '../../utils/qrCode.js';
+import logger from '../../utils/logger.js';
 import { User } from '../auth/auth.model.js';
+import '../businessProfile/businessProfile.model.js';
 import { Marketplace } from '../marketplace/marketplace.model.js';
 import { Event } from '../event/event.model.js';
 import { Order } from './order.model.js';
@@ -22,11 +26,15 @@ const createOrder = async (
     throw new AppError('User not found', 404);
   }
 
-  const orderData: Partial<IOrder> = {
+  const orderId = new Types.ObjectId();
+
+  const orderData: Partial<IOrder> & { _id: Types.ObjectId } = {
+    _id: orderId,
     user: user._id as any,
     itemType,
     quantity,
     status: 'CLAIMED',
+    qrCode: '',
   };
 
   if (itemType === 'MARKETPLACE') {
@@ -66,6 +74,41 @@ const createOrder = async (
     orderData.businessOwnerId = marketplaceItem.businessOwnerId as any;
     orderData.itemId = marketplaceItem._id as any;
     orderData.itemPoints = marketplaceItem.points;
+
+    // Fetch seller information for the QR code payload
+    const ownerUser = await User.findById(marketplaceItem.businessOwnerId).populate('businessProfile');
+    const sellerName =
+      (ownerUser as any)?.businessProfile?.businessName || ownerUser?.name || 'Marketplace Seller';
+
+    const qrData = {
+      orderId: orderId.toString(),
+      itemType: 'MARKETPLACE',
+      title: marketplaceItem.title,
+      description: marketplaceItem.description || '',
+      location: marketplaceItem.location || '',
+      seller: sellerName,
+      points: marketplaceItem.points,
+      totalPoints: totalPointsRequired,
+      quantity,
+      status: 'CLAIMED',
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+      },
+      claimedAt: new Date().toISOString(),
+    };
+
+    try {
+      const qrCodeUrl = await generateQRCode(
+        qrData,
+        `order-${orderId.toString()}.png`,
+        'qrcodes'
+      );
+      orderData.qrCode = qrCodeUrl;
+    } catch (err: any) {
+      logger.error('[createOrder] Failed to generate marketplace QR code:', err);
+    }
   } else if (itemType === 'EVENT') {
     const eventId = payload.eventId || payload.itemId;
     if (!eventId) {
@@ -108,6 +151,42 @@ const createOrder = async (
     orderData.rewardItemId = reward._id as any;
     orderData.eventId = event._id as any;
     orderData.itemPoints = reward.pointsRequired;
+
+    // Fetch organizer information for the QR code payload
+    const hostUser = await User.findById(event.hostId).populate('businessProfile');
+    const organizerName =
+      (hostUser as any)?.businessProfile?.businessName || hostUser?.name || 'Event Organizer';
+
+    const qrData = {
+      orderId: orderId.toString(),
+      itemType: 'EVENT',
+      eventTitle: event.title,
+      rewardTitle: reward.title || event.title,
+      description: reward.description || event.description || '',
+      location: event.placeName || '',
+      organizer: organizerName,
+      points: reward.pointsRequired,
+      totalPoints: totalPointsRequired,
+      quantity,
+      status: 'CLAIMED',
+      user: {
+        id: user._id.toString(),
+        name: user.name,
+        email: user.email,
+      },
+      claimedAt: new Date().toISOString(),
+    };
+
+    try {
+      const qrCodeUrl = await generateQRCode(
+        qrData,
+        `order-${orderId.toString()}.png`,
+        'qrcodes'
+      );
+      orderData.qrCode = qrCodeUrl;
+    } catch (err: any) {
+      logger.error('[createOrder] Failed to generate event reward QR code:', err);
+    }
   }
 
   // Create order
@@ -139,6 +218,86 @@ const getMyOrders = async (userId: string, query: any) => {
 
   const total = await Order.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
+
+  // Auto-backfill QR codes for any older orders missing qrCode
+  await Promise.all(
+    orders.map(async (order) => {
+      if (!order.qrCode) {
+        try {
+          let qrData: any = null;
+          if (order.itemType === 'MARKETPLACE') {
+            const marketplace = order.itemId as any;
+            const ownerUser = order.businessOwnerId
+              ? await User.findById(order.businessOwnerId).populate('businessProfile')
+              : null;
+            const sellerName =
+              (ownerUser as any)?.businessProfile?.businessName || ownerUser?.name || 'Marketplace Seller';
+
+            qrData = {
+              orderId: order._id.toString(),
+              itemType: 'MARKETPLACE',
+              title: marketplace?.title || 'Marketplace Item',
+              description: marketplace?.description || '',
+              location: marketplace?.location || '',
+              seller: sellerName,
+              points: order.itemPoints || marketplace?.points || 0,
+              totalPoints: (order.itemPoints || marketplace?.points || 0) * (order.quantity || 1),
+              quantity: order.quantity || 1,
+              status: order.status,
+              userId: userId,
+              claimedAt: order.createdAt?.toISOString?.() || new Date().toISOString(),
+            };
+          } else if (order.itemType === 'EVENT') {
+            const event = order.eventId as any;
+            let rewardTitle = event?.title || 'Event Reward';
+            let description = event?.description || '';
+            if (event?.rewards && Array.isArray(event.rewards) && order.rewardItemId) {
+              const reward = event.rewards.find(
+                (r: any) => r._id?.toString() === order.rewardItemId?.toString()
+              );
+              if (reward) {
+                rewardTitle = reward.title || event.title;
+                description = reward.description || event.description || '';
+              }
+            }
+            const hostUser = order.hostId
+              ? await User.findById(order.hostId).populate('businessProfile')
+              : null;
+            const organizerName =
+              (hostUser as any)?.businessProfile?.businessName || hostUser?.name || 'Event Organizer';
+
+            qrData = {
+              orderId: order._id.toString(),
+              itemType: 'EVENT',
+              eventTitle: event?.title || 'Event',
+              rewardTitle,
+              description,
+              location: event?.placeName || '',
+              organizer: organizerName,
+              points: order.itemPoints || 0,
+              totalPoints: (order.itemPoints || 0) * (order.quantity || 1),
+              quantity: order.quantity || 1,
+              status: order.status,
+              userId: userId,
+              claimedAt: order.createdAt?.toISOString?.() || new Date().toISOString(),
+            };
+          }
+
+          if (qrData) {
+            const qrCodeUrl = await generateQRCode(
+              qrData,
+              `order-${order._id.toString()}.png`,
+              'qrcodes'
+            );
+            order.qrCode = qrCodeUrl;
+            await Order.updateOne({ _id: order._id }, { qrCode: qrCodeUrl });
+          }
+        } catch (err: any) {
+          logger.error(`[getMyOrders] Failed to backfill QR code for order ${order._id}:`, err);
+        }
+      }
+    })
+  );
 
   const formattedOrders = orders.map((order) => {
     let title = '';
@@ -186,6 +345,7 @@ const getMyOrders = async (userId: string, query: any) => {
       points,
       quantity: order.quantity,
       status: order.status,
+      qrCode: order.qrCode || '',
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
     };
@@ -217,6 +377,86 @@ const getOrderById = async (userId: string, orderId: string, role?: string): Pro
 
   if (!order) {
     throw new AppError('Order not found', 404);
+  }
+
+  // Auto-backfill QR code if missing
+  if (!order.qrCode) {
+    try {
+      let qrData: any = null;
+      if (order.itemType === 'MARKETPLACE') {
+        const marketplace = order.itemId as any;
+        const ownerUser = order.businessOwnerId as any;
+        const sellerName =
+          ownerUser?.businessProfile?.businessName || ownerUser?.name || 'Marketplace Seller';
+
+        qrData = {
+          orderId: order._id.toString(),
+          itemType: 'MARKETPLACE',
+          title: marketplace?.title || 'Marketplace Item',
+          description: marketplace?.description || '',
+          location: marketplace?.location || '',
+          seller: sellerName,
+          points: order.itemPoints || marketplace?.points || 0,
+          totalPoints: (order.itemPoints || marketplace?.points || 0) * (order.quantity || 1),
+          quantity: order.quantity || 1,
+          status: order.status,
+          user: {
+            id: (order.user as any)?._id?.toString() || (order.user as any)?.toString(),
+            name: (order.user as any)?.name,
+            email: (order.user as any)?.email,
+          },
+          claimedAt: order.createdAt?.toISOString?.() || new Date().toISOString(),
+        };
+      } else if (order.itemType === 'EVENT') {
+        const event = order.eventId as any;
+        let rewardTitle = event?.title || 'Event Reward';
+        let description = event?.description || '';
+        if (event?.rewards && Array.isArray(event.rewards) && order.rewardItemId) {
+          const reward = event.rewards.find(
+            (r: any) => r._id?.toString() === order.rewardItemId?.toString()
+          );
+          if (reward) {
+            rewardTitle = reward.title || event.title;
+            description = reward.description || event.description || '';
+          }
+        }
+        const hostUser = order.hostId as any;
+        const organizerName =
+          hostUser?.businessProfile?.businessName || hostUser?.name || 'Event Organizer';
+
+        qrData = {
+          orderId: order._id.toString(),
+          itemType: 'EVENT',
+          eventTitle: event?.title || 'Event',
+          rewardTitle,
+          description,
+          location: event?.placeName || '',
+          organizer: organizerName,
+          points: order.itemPoints || 0,
+          totalPoints: (order.itemPoints || 0) * (order.quantity || 1),
+          quantity: order.quantity || 1,
+          status: order.status,
+          user: {
+            id: (order.user as any)?._id?.toString() || (order.user as any)?.toString(),
+            name: (order.user as any)?.name,
+            email: (order.user as any)?.email,
+          },
+          claimedAt: order.createdAt?.toISOString?.() || new Date().toISOString(),
+        };
+      }
+
+      if (qrData) {
+        const qrCodeUrl = await generateQRCode(
+          qrData,
+          `order-${order._id.toString()}.png`,
+          'qrcodes'
+        );
+        order.qrCode = qrCodeUrl;
+        await Order.updateOne({ _id: order._id }, { qrCode: qrCodeUrl });
+      }
+    } catch (err: any) {
+      logger.error(`[getOrderById] Failed to backfill QR code for order ${order._id}:`, err);
+    }
   }
 
   return order;
