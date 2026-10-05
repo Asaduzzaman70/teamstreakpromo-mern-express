@@ -9,6 +9,7 @@ import {
   getAllEventsService,
   getAdminEventsService,
   getEventByIdService,
+  getEventStatsService,
   deleteEventService,
 } from './event.service.js';
 
@@ -114,3 +115,16 @@ export const deleteEvent = catchAsync(async (req: AuthenticatedRequest, res: Res
   });
 });
 
+
+// @desc    Get summary statistics for events
+// @route   GET /api/events/stats
+// @access  Private (USER, HOST, BUSINESS, ADMIN)
+export const getEventStats = catchAsync(async (_req: Request, res: Response): Promise<void> => {
+  const result = await getEventStatsService();
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Event stats retrieved successfully',
+    data: result,
+  });
+});

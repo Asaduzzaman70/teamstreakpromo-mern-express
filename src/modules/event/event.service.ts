@@ -1021,3 +1021,67 @@ export const getAdminEventsService = async (
 };
 
 
+
+// @desc    Get summary statistics for events
+export const getEventStatsService = async () => {
+  const now = new Date();
+  const totalEvents = await Event.countDocuments();
+  const ongoingEvents = await Event.countDocuments({
+    startDate: { $lte: now },
+    endDate: { $gte: now },
+  });
+  const upcomingEvents = await Event.countDocuments({
+    startDate: { $gt: now },
+  });
+  const completedEvents = await Event.countDocuments({
+    endDate: { $lt: now },
+  });
+
+  const ticketSales = await EventOrder.aggregate([
+    {
+      $match: {
+        status: { $ne: 'CANCELLED' },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSold: { $sum: '$totalTicketQuantity' },
+      },
+    },
+  ]);
+
+  const totalParticipants = ticketSales[0]?.totalSold || 0;
+
+  const rewardPointsAgg = await Event.aggregate([
+    { $unwind: { path: '$rewards', preserveNullAndEmptyArrays: false } },
+    {
+      $group: {
+        _id: null,
+        totalPoints: { $sum: '$rewards.pointsRequired' },
+      },
+    },
+  ]);
+  const totalRewardPoints = rewardPointsAgg[0]?.totalPoints || 0;
+
+  return {
+    totalEvents,
+    activeEvents: totalEvents,
+    inactiveEvents: 0,
+    ongoingEvents,
+    upcomingEvents,
+    completedEvents,
+    cancelledEvents: 0,
+    totalParticipants,
+    totalRewardPoints,
+    statusCounts: {
+      all: totalEvents,
+      active: totalEvents,
+      inactive: 0,
+      ongoing: ongoingEvents,
+      upcoming: upcomingEvents,
+      completed: completedEvents,
+      cancelled: 0,
+    },
+  };
+};
