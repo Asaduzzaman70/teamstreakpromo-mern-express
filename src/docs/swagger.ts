@@ -11,6 +11,7 @@ import { rewardSubCategoryDocs } from './rewardSubCategory.docs.js';
 import { marketplaceDocs } from './marketplace.docs.js';
 import { orderDocs } from './order.docs.js';
 import { eventOrderDocs } from './eventOrder.docs.js';
+import { userDocs } from './user.docs.js';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -51,6 +52,7 @@ const options: swaggerJsdoc.Options = {
       ...marketplaceDocs,
       ...orderDocs,
       ...eventOrderDocs,
+      ...userDocs,
     },
   },
   apis: [],
