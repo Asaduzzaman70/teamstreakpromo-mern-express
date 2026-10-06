@@ -99,6 +99,44 @@ export const createMarketplaceService = async (
   ]);
 };
 
+
+export const getMarketplaceStatsService = async (): Promise<{
+  totalProducts: number;
+  activeProducts: number;
+  inactiveProducts: number;
+  expiredProducts: number;
+  totalQuantity: number;
+  totalClaimed: number;
+}> => {
+  const now = new Date();
+  const totalProducts = await Marketplace.countDocuments();
+  const activeProducts = await Marketplace.countDocuments({ isActive: { $ne: false } });
+  const inactiveProducts = await Marketplace.countDocuments({ isActive: false });
+  const expiredProducts = await Marketplace.countDocuments({ endDateTime: { $lt: now } });
+
+  const agg = await Marketplace.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalQuantity: { $sum: '$quantity' },
+        totalClaimed: { $sum: '$claimQuantity' },
+      },
+    },
+  ]);
+
+  const totalQuantity = agg[0]?.totalQuantity ?? 0;
+  const totalClaimed = agg[0]?.totalClaimed ?? 0;
+
+  return {
+    totalProducts,
+    activeProducts,
+    inactiveProducts,
+    expiredProducts,
+    totalQuantity,
+    totalClaimed,
+  };
+};
+
 export const getAllMarketplacesService = async (
   query: MarketplaceQuery
 ): Promise<{ meta: IMeta; result: any[] }> => {
@@ -160,6 +198,20 @@ export const getAllMarketplacesService = async (
   const total = await Marketplace.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
 
+
+  const sortBy = (query as any).sortBy || 'createdAt';
+  const sortOrder = (query as any).sortOrder === 'asc' ? 1 : -1;
+  const sortFieldMap: Record<string, string> = {
+    createdAt: 'createdAt',
+    title: 'title',
+    points: 'points',
+    quantity: 'quantity',
+    claimQuantity: 'claimQuantity',
+    startDateTime: 'startDateTime',
+    endDateTime: 'endDateTime',
+  };
+  const sortOption: Record<string, any> = {};
+  sortOption[sortFieldMap[sortBy] || 'createdAt'] = sortOrder;
   const marketplaces = await Marketplace.find(filter)
     .populate([
       {
@@ -173,7 +225,7 @@ export const getAllMarketplacesService = async (
       { path: 'category', select: 'name description' },
       { path: 'subCategory', select: 'name description' },
     ])
-    .sort({ createdAt: -1 })
+    .sort(sortOption)
     .skip(skip)
     .limit(limit);
 

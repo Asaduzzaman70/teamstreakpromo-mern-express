@@ -8,6 +8,7 @@ import {
   getMarketplaceByIdService,
   updateMarketplaceService,
   deleteMarketplaceService,
+  getMarketplaceStatsService,
 } from './marketplace.service.js';
 
 // @desc    Create a new marketplace item
@@ -27,6 +28,19 @@ export const createMarketplace = catchAsync(async (req: AuthenticatedRequest, re
 // @desc    Get all marketplace items with optional search and filters
 // @route   GET /api/marketplace
 // @access  Public
+
+// @desc    Get marketplace statistics summary
+// @route   GET /api/marketplaces/stats
+// @access  Public
+export const getMarketplaceStats = catchAsync(async (_req: Request, res: Response): Promise<void> => {
+  const result = await getMarketplaceStatsService();
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Marketplace stats retrieved successfully',
+    data: result,
+  });
+});
+
 export const getAllMarketplaces = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const { meta, result } = await getAllMarketplacesService(req.query);
   sendResponse(res, {

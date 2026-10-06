@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   createMarketplace,
   getAllMarketplaces,
+  getMarketplaceStats,
   getMyMarketplaces,
   getMarketplaceById,
   updateMarketplace,
@@ -18,7 +19,7 @@ const marketplaceUploadFields = uploadAny();
 router.post(
   '/',
   protect,
-  authorizeRoles('BUSINESS'),
+  authorizeRoles('BUSINESS', 'ADMIN'),
   marketplaceUploadFields,
   validateRequest(createMarketplaceSchema),
   createMarketplace
@@ -27,14 +28,15 @@ router.get('/', getAllMarketplaces);
 router.get(
   '/my-marketplaces',
   protect,
-  authorizeRoles('BUSINESS'),
+  authorizeRoles('BUSINESS', 'ADMIN'),
   getMyMarketplaces
 );
+router.get('/stats', getMarketplaceStats);
 router.get('/:id', getMarketplaceById);
 router.patch(
   '/:id',
   protect,
-  authorizeRoles('BUSINESS'),
+  authorizeRoles('BUSINESS', 'ADMIN'),
   marketplaceUploadFields,
   validateRequest(updateMarketplaceSchema),
   updateMarketplace
@@ -42,7 +44,7 @@ router.patch(
 router.delete(
   '/:id',
   protect,
-  authorizeRoles('BUSINESS'),
+  authorizeRoles('BUSINESS', 'ADMIN'),
   deleteMarketplace
 );
 
