@@ -43,6 +43,7 @@ app.use(
       const isAllowed =
         allowedOrigins.includes(origin) ||
         /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin) ||
+        /^https:\/\/([a-zA-Z0-9_-]+\.)?vercel\.app$/.test(origin) ||
         config.nodeEnv === 'development';
 
       if (isAllowed) {
@@ -59,6 +60,10 @@ app.use(
       'X-Requested-With',
       'Accept',
       'Origin',
+      'Cache-Control',
+      'Pragma',
+      'Expires',
+      'X-Refresh-Token',
     ],
     optionsSuccessStatus: 200,
   })
