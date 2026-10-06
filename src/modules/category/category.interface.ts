@@ -13,6 +13,7 @@ export interface CategoryQuery {
   parentCategory?: string;
   getAllParentCategory?: boolean | string;
   getallParentCategory?: boolean | string;
+  isSubcategory?: boolean | string;
   page?: number | string;
   limit?: number | string;
 }

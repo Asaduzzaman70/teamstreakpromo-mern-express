@@ -5,6 +5,7 @@ import {
   getCategoryById,
   updateCategory,
   deleteCategory,
+  getCategoryStats,
 } from './category.controller.js';
 import {
   createCategorySchema,
@@ -19,6 +20,8 @@ router
   .route('/')
   .post(protect, authorizeRoles("ADMIN"), validateRequest(createCategorySchema), createCategory)
   .get(getAllCategories);
+
+router.route('/stats').get(getCategoryStats);
 
 router
   .route('/:id')

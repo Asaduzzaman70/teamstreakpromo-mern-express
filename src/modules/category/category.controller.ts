@@ -7,6 +7,7 @@ import {
   getCategoryByIdService,
   updateCategoryService,
   deleteCategoryService,
+  getCategoryStatsService,
 } from './category.service.js';
 
 // @desc    Create a new category
@@ -66,5 +67,18 @@ export const deleteCategory = catchAsync(async (req: Request, res: Response): Pr
   sendResponse(res, {
     statusCode: 200,
     message: result.message,
+  });
+});
+
+
+// @desc    Get category & subcategory statistics
+// @route   GET /api/categories/stats
+// @access  Public
+export const getCategoryStats = catchAsync(async (_req: Request, res: Response): Promise<void> => {
+  const result = await getCategoryStatsService();
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Category stats retrieved successfully',
+    data: result,
   });
 });

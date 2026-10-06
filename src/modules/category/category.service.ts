@@ -61,6 +61,8 @@ export const getAllCategoriesService = async (
     } else {
       filter.parentCategory = query.parentCategory;
     }
+  } else if (query.isSubcategory !== undefined && (query.isSubcategory === true || query.isSubcategory === 'true')) {
+    filter.parentCategory = { $ne: null };
   }
 
   const page = Math.max(1, Number(query.page) || 1);
@@ -159,4 +161,41 @@ export const deleteCategoryService = async (
 
   await Category.findByIdAndDelete(id);
   return { message: 'Category deleted successfully' };
+};
+
+
+export const getCategoryStatsService = async () => {
+  const total = await Category.countDocuments();
+  const active = await Category.countDocuments({ isActive: true });
+  const inactive = total - active;
+  const parentCategories = await Category.countDocuments({ parentCategory: null });
+  const activeParents = await Category.countDocuments({ parentCategory: null, isActive: true });
+  const inactiveParents = parentCategories - activeParents;
+  const subcategoriesCount = total - parentCategories;
+  const activeSubs = await Category.countDocuments({ parentCategory: { $ne: null }, isActive: true });
+  const inactiveSubs = subcategoriesCount - activeSubs;
+
+  const distinctParentsWithSubs = await Category.distinct('parentCategory', {
+    parentCategory: { $ne: null },
+  });
+  const parentCoverage =
+    parentCategories > 0
+      ? `${Math.round((distinctParentsWithSubs.length / parentCategories) * 100)}%`
+      : '100%';
+
+  return {
+    total,
+    active,
+    inactive,
+    parentCategories,
+    activeParents,
+    inactiveParents,
+    subcategoriesCount,
+    subcategories: {
+      total: subcategoriesCount,
+      active: activeSubs,
+      inactive: inactiveSubs,
+      parentCoverage,
+    },
+  };
 };
