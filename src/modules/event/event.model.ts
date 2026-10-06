@@ -126,6 +126,10 @@ const EventSchema = new Schema<IEvent>(
       type: String,
       trim: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     paidOutAt: {
       type: Date,
     },

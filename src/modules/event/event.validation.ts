@@ -207,6 +207,7 @@ export const createEventSchema = z
 
 export const updateEventSchema = z
   .object({
+    isActive: z.boolean().optional(),
     subCategoryId: z.string().trim().min(1, 'Subcategory ID cannot be empty').optional(),
     categoryId: z.string().trim().min(1, 'Category ID cannot be empty').optional(),
     title: z.string().trim().min(1, 'Title cannot be empty').optional(),

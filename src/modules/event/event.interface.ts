@@ -51,6 +51,7 @@ export interface IEvent extends Document {
   payoutError?: string | undefined;
   paidOutAt?: Date | undefined;
   ticketsSold?: number;
+  isActive?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -85,6 +86,7 @@ export interface EventQuery {
   past?: boolean | string;
   status?: 'UPCOMING' | 'ACTIVE' | 'ENDED' | 'ALL' | string;
   isEnded?: boolean | string;
+  isActive?: boolean | string;
 }
 
 

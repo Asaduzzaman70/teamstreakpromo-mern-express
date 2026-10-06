@@ -128,3 +128,26 @@ export const getEventStats = catchAsync(async (_req: Request, res: Response): Pr
     data: result,
   });
 });
+
+// @desc    Toggle event active status
+// @route   PATCH /api/events/:id/status
+// @access  Private (Admin / Host)
+export const updateEventStatus = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
+
+  const { isActive } = req.body;
+  const result = await updateEventService(
+    req.params.id as string,
+    req.user.id,
+    req.user.role,
+    { isActive: Boolean(isActive) }
+  );
+
+  sendResponse(res, {
+    statusCode: 200,
+    message: `Event ${isActive ? 'activated' : 'deactivated'} successfully`,
+    data: result,
+  });
+});

@@ -660,6 +660,30 @@ export const getAllEventsService = async (
     }
   }
 
+  // Filter by active status (isActive: true / false)
+  if (query.isActive !== undefined && query.isActive !== '') {
+    const isActive = query.isActive === true || query.isActive === 'true';
+    if (isActive) {
+      filter.isActive = { $ne: false };
+    } else {
+      filter.isActive = false;
+    }
+  }
+
+  // Filter by timeline status (ONGOING, UPCOMING, COMPLETED/ENDED)
+  if (query.status && query.status !== 'ALL' && query.status !== 'all') {
+    const s = query.status.toUpperCase();
+    const now = new Date();
+    if (s === 'UPCOMING') {
+      filter.startDate = { ...(filter.startDate || {}), $gt: now };
+    } else if (s === 'ONGOING' || s === 'ACTIVE') {
+      filter.startDate = { ...(filter.startDate || {}), $lte: now };
+      filter.endDate = { ...(filter.endDate || {}), $gte: now };
+    } else if (s === 'COMPLETED' || s === 'ENDED') {
+      filter.endDate = { ...(filter.endDate || {}), $lt: now };
+    }
+  }
+
   const rawLat = query.latitude ?? query.lat;
   const rawLng = query.longitude ?? query.lng ?? query.lan ?? query.lon;
 
@@ -963,6 +987,16 @@ export const getAdminEventsService = async (
   const total = await Event.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
 
+  const sortBy = (query as any).sortBy || 'createdAt';
+  const sortOrder = (query as any).sortOrder === 'asc' ? 1 : -1;
+  const sortFieldMap: Record<string, string> = {
+    startDate: 'startDate',
+    title: 'title',
+    createdAt: 'createdAt',
+  };
+  const sortOption: Record<string, any> = {};
+  sortOption[sortFieldMap[sortBy] || 'createdAt'] = sortOrder;
+
   const paginatedEvents = await Event.find(filter)
     .populate('hostId', 'name email role profileImage')
     .populate({
@@ -973,7 +1007,7 @@ export const getAdminEventsService = async (
         select: 'name description',
       },
     })
-    .sort({ createdAt: -1 })
+    .sort(sortOption)
     .skip(skip)
     .limit(limit);
 
@@ -1026,6 +1060,8 @@ export const getAdminEventsService = async (
 export const getEventStatsService = async () => {
   const now = new Date();
   const totalEvents = await Event.countDocuments();
+  const activeEvents = await Event.countDocuments({ isActive: { $ne: false } });
+  const inactiveEvents = await Event.countDocuments({ isActive: false });
   const ongoingEvents = await Event.countDocuments({
     startDate: { $lte: now },
     endDate: { $gte: now },
@@ -1066,8 +1102,8 @@ export const getEventStatsService = async () => {
 
   return {
     totalEvents,
-    activeEvents: totalEvents,
-    inactiveEvents: 0,
+    activeEvents,
+    inactiveEvents,
     ongoingEvents,
     upcomingEvents,
     completedEvents,
@@ -1076,8 +1112,8 @@ export const getEventStatsService = async () => {
     totalRewardPoints,
     statusCounts: {
       all: totalEvents,
-      active: totalEvents,
-      inactive: 0,
+      active: activeEvents,
+      inactive: inactiveEvents,
       ongoing: ongoingEvents,
       upcoming: upcomingEvents,
       completed: completedEvents,
