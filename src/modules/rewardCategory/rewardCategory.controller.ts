@@ -7,6 +7,7 @@ import {
   getRewardCategoryByIdService,
   updateRewardCategoryService,
   deleteRewardCategoryService,
+  getRewardCategoryStatsService,
 } from './rewardCategory.service.js';
 
 // @desc    Create a new reward category
@@ -66,5 +67,17 @@ export const deleteRewardCategory = catchAsync(async (req: Request, res: Respons
   sendResponse(res, {
     statusCode: 200,
     message: result.message,
+  });
+});
+
+// @desc    Get reward category statistics
+// @route   GET /api/reward-categories/stats
+// @access  Public
+export const getRewardCategoryStats = catchAsync(async (_req: Request, res: Response): Promise<void> => {
+  const result = await getRewardCategoryStatsService();
+  sendResponse(res, {
+    statusCode: 200,
+    message: 'Reward Category stats retrieved successfully',
+    data: result,
   });
 });

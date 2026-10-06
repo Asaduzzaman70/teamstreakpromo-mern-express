@@ -139,3 +139,10 @@ export const deleteRewardSubCategoryService = async (
   await RewardSubCategory.findByIdAndDelete(id);
   return { message: 'Reward Subcategory deleted successfully' };
 };
+
+export const getRewardSubCategoryStatsService = async () => {
+  const total = await RewardSubCategory.countDocuments();
+  const active = await RewardSubCategory.countDocuments({ isActive: true });
+  const inactive = total - active;
+  return { total, active, inactive };
+};

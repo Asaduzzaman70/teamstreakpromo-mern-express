@@ -5,6 +5,7 @@ import {
   getRewardSubCategoryById,
   updateRewardSubCategory,
   deleteRewardSubCategory,
+  getRewardSubCategoryStats,
 } from './rewardSubCategory.controller.js';
 import {
   createRewardSubCategorySchema,
@@ -19,6 +20,8 @@ router
   .route('/')
   .post(protect, authorizeRoles("ADMIN"), validateRequest(createRewardSubCategorySchema), createRewardSubCategory)
   .get(getAllRewardSubCategories);
+
+router.route('/stats').get(getRewardSubCategoryStats);
 
 router
   .route('/:id')

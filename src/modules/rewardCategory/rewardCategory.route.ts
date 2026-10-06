@@ -5,6 +5,7 @@ import {
   getRewardCategoryById,
   updateRewardCategory,
   deleteRewardCategory,
+  getRewardCategoryStats,
 } from './rewardCategory.controller.js';
 import {
   createRewardCategorySchema,
@@ -19,6 +20,8 @@ router
   .route('/')
   .post(protect, authorizeRoles("ADMIN"), validateRequest(createRewardCategorySchema), createRewardCategory)
   .get(getAllRewardCategories);
+
+router.route('/stats').get(getRewardCategoryStats);
 
 router
   .route('/:id')

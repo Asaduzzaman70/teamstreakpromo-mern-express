@@ -1,3 +1,4 @@
+import { RewardSubCategory } from '../rewardSubCategory/rewardSubCategory.model.js';
 import { RewardCategory, type IRewardCategory } from './rewardCategory.model.js';
 import { AppError } from '../../utils/AppError.js';
 import type { IMeta } from '../../utils/sendResponse.js';
@@ -114,6 +115,18 @@ export const deleteRewardCategoryService = async (
     throw new AppError('Reward Category not found', 404);
   }
 
+  const subCount = await RewardSubCategory.countDocuments({ rewardCategory: id as any });
+  if (subCount > 0) {
+    throw new AppError(`Cannot delete reward category. It has ${subCount} assigned subcategory(ies)`, 400);
+  }
+
   await RewardCategory.findByIdAndDelete(id);
   return { message: 'Reward Category deleted successfully' };
+};
+
+export const getRewardCategoryStatsService = async () => {
+  const total = await RewardCategory.countDocuments();
+  const active = await RewardCategory.countDocuments({ isActive: true });
+  const inactive = total - active;
+  return { total, active, inactive };
 };
