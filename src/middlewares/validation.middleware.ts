@@ -28,7 +28,12 @@ export const validateRequest = (
           req.body = await schemaObj.body.parseAsync(req.body);
         }
         if (schemaObj.query) {
-          req.query = (await schemaObj.query.parseAsync(req.query)) as any;
+          const parsedQuery = (await schemaObj.query.parseAsync(req.query)) as any;
+          try {
+            req.query = parsedQuery;
+          } catch {
+            Object.assign(req.query, parsedQuery);
+          }
         }
         if (schemaObj.params) {
           req.params = (await schemaObj.params.parseAsync(req.params)) as any;
