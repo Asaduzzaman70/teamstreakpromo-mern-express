@@ -19,8 +19,11 @@ export interface IUser extends Document {
   agreesToTerms: boolean;
   createdAt: Date;
   updatedAt: Date;
-  isActive: Boolean;
-  isSuspend: Boolean;
+  isActive: boolean;
+  isSuspend: boolean;
+  isDeleted: boolean;
+  deletedAt?: Date | null;
+  originalEmail?: string;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -37,6 +40,12 @@ const UserSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
+    },
+    originalEmail: {
+      type: String,
+      default: '',
+      trim: true,
+      lowercase: true,
     },
     password: {
       type: String,
@@ -95,12 +104,24 @@ const UserSchema = new Schema<IUser>(
     isSuspend: {
       type: Boolean,
       default: false,
-    }
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// Compound index for querying active vs deleted users
+UserSchema.index({ isDeleted: 1, email: 1 });
 
 // Virtual field to populate BusinessProfile
 UserSchema.virtual('businessProfile', {

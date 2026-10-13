@@ -28,15 +28,15 @@ export const getUserStatsService = async (): Promise<IUserStatsSummary> => {
     suspendedUsers,
     newUsersThisMonth,
   ] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ role: 'USER' }),
-    User.countDocuments({ role: 'HOST' }),
-    User.countDocuments({ role: 'BUSINESS' }),
-    User.countDocuments({ role: 'ADMIN' }),
-    User.countDocuments({ isActive: true }),
-    User.countDocuments({ isActive: false }),
-    User.countDocuments({ isSuspend: true }),
-    User.countDocuments({ createdAt: { $gte: startOfMonth } }),
+    User.countDocuments({ isDeleted: { $ne: true } }),
+    User.countDocuments({ role: 'USER', isDeleted: { $ne: true } }),
+    User.countDocuments({ role: 'HOST', isDeleted: { $ne: true } }),
+    User.countDocuments({ role: 'BUSINESS', isDeleted: { $ne: true } }),
+    User.countDocuments({ role: 'ADMIN', isDeleted: { $ne: true } }),
+    User.countDocuments({ isActive: true, isDeleted: { $ne: true } }),
+    User.countDocuments({ isActive: false, isDeleted: { $ne: true } }),
+    User.countDocuments({ isSuspend: true, isDeleted: { $ne: true } }),
+    User.countDocuments({ createdAt: { $gte: startOfMonth }, isDeleted: { $ne: true } }),
   ]);
 
   return {
@@ -59,6 +59,13 @@ export const getAllUsersService = async (
   query: IUserQuery
 ): Promise<IGetAllUsersResult> => {
   const filter: Record<string, any> = {};
+
+  // Exclude soft-deleted users unless explicitly requested
+  if ((query as any).isDeleted !== undefined) {
+    filter.isDeleted = (query as any).isDeleted === 'true' || (query as any).isDeleted === true;
+  } else {
+    filter.isDeleted = { $ne: true };
+  }
 
   // Search by name, email, or phoneNumber
   if (query.search && query.search.trim()) {
@@ -140,7 +147,7 @@ export const getUserByIdService = async (id: string): Promise<IUser> => {
     .select('-password -refreshToken')
     .populate('businessProfile');
 
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -156,7 +163,7 @@ export const updateUserStatusService = async (
 ): Promise<IUser> => {
   const user = await User.findById(id);
 
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -192,7 +199,7 @@ export const updateUserRoleService = async (
 ): Promise<IUser> => {
   const user = await User.findById(id);
 
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 

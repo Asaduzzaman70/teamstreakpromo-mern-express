@@ -64,6 +64,16 @@ export interface LogoutResponse {
   message: string;
 }
 
+export interface DeleteAccountInput {
+  hardDelete?: boolean | string | undefined;
+  reason?: string | undefined;
+}
+
+export interface DeleteAccountResponse {
+  message: string;
+  deletedType: 'soft' | 'hard';
+}
+
 export interface UserProfileResponse {
   _id: unknown;
   name: string;

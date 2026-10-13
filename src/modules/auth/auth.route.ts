@@ -13,6 +13,7 @@ import {
   changePassword,
   refreshToken,
   logoutUser,
+  deleteAccount,
 } from './auth.controller.js';
 import {
   registerSchema,
@@ -23,8 +24,9 @@ import {
   refreshTokenSchema,
   updateProfileSchema,
   changePasswordSchema,
+  deleteAccountSchema,
 } from './auth.validation.js';
-import { protect } from '../../middlewares/authMiddleware.js';
+import { protect, authorizeRoles } from '../../middlewares/authMiddleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
 import { uploadFields } from '../../middlewares/multer.middleware.js';
 
@@ -64,5 +66,19 @@ router.get('/me', protect, getMe);
 router.patch('/me', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
 router.patch('/profile', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
 router.put('/profile', protect, profileUploadFields, validateRequest(updateProfileSchema), updateProfile);
+router.delete(
+  '/delete-account',
+  protect,
+  authorizeRoles('USER', 'HOST', 'BUSINESS', 'ADMIN'),
+  validateRequest(deleteAccountSchema),
+  deleteAccount
+);
+router.delete(
+  '/me',
+  protect,
+  authorizeRoles('USER', 'HOST', 'BUSINESS', 'ADMIN'),
+  validateRequest(deleteAccountSchema),
+  deleteAccount
+);
 
 export default router;

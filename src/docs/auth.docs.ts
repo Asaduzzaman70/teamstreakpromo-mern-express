@@ -715,6 +715,61 @@ export const authDocs = {
           },
         },
       },
+      delete: {
+        summary: 'Delete currently authenticated user account',
+        description: 'Allows an authenticated user (USER, HOST, BUSINESS, ADMIN) to delete their account. Defaults to soft deletion, or hard deletion if hardDelete=true is provided.',
+        tags: ['Authentication'],
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'hardDelete',
+            in: 'query',
+            required: false,
+            schema: { type: 'boolean', default: false },
+            description: 'Set to true for permanent database and S3 asset purge',
+          },
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  hardDelete: { type: 'boolean', example: false },
+                  reason: { type: 'string', example: 'No longer using the service' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Account deleted successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    statusCode: { type: 'number', example: 200 },
+                    message: { type: 'string', example: 'Account deleted successfully' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        message: { type: 'string', example: 'Account deleted successfully' },
+                        deletedType: { type: 'string', enum: ['soft', 'hard'], example: 'soft' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized - Missing or invalid token' },
+          '404': { description: 'User not found or account already deleted' },
+        },
+      },
     },
   },
   '/api/auth/profile': {
@@ -762,4 +817,62 @@ export const authDocs = {
       },
     },
   },
+  '/api/auth/delete-account': {
+    delete: {
+      summary: 'Delete logged-in user account',
+      description: 'Allows an authenticated user (USER, HOST, BUSINESS, ADMIN) to delete their own account. By default, performs a soft delete (marking account as deleted, revoking tokens, freeing up email). Set hardDelete=true to permanently purge the account and S3 documents.',
+      tags: ['Authentication'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'hardDelete',
+          in: 'query',
+          required: false,
+          schema: { type: 'boolean', default: false },
+          description: 'Set to true for permanent database and S3 asset purge',
+        },
+      ],
+      requestBody: {
+        required: false,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                hardDelete: { type: 'boolean', example: false },
+                reason: { type: 'string', example: 'Closing account' },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'Account deleted successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Account deleted successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      message: { type: 'string', example: 'Account deleted successfully' },
+                      deletedType: { type: 'string', enum: ['soft', 'hard'], example: 'soft' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '401': { description: 'Unauthorized - Missing or invalid token' },
+        '404': { description: 'User not found or account already deleted' },
+      },
+    },
+  },
 };
+

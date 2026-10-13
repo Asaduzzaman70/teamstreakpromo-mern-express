@@ -17,6 +17,7 @@ import {
   changePasswordService,
   refreshTokenService,
   logoutUserService,
+  deleteAccountService,
 } from './auth.service.js';
 
 // @desc    Register a new user
@@ -195,5 +196,23 @@ export const changePassword = catchAsync(async (req: AuthenticatedRequest, res: 
   });
 });
 
+// @desc    Delete logged in user account (Soft delete by default, hard delete if specified)
+// @route   DELETE /api/auth/delete-account or DELETE /api/auth/me
+// @access  Private
+export const deleteAccount = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!req.user || !req.user.id) {
+    throw new AppError('Not authorized', 401);
+  }
 
+  const options = {
+    hardDelete: req.query.hardDelete ?? req.body?.hardDelete,
+    reason: req.body?.reason,
+  };
 
+  const result = await deleteAccountService(req.user.id, options);
+  sendResponse(res, {
+    statusCode: 200,
+    message: result.message,
+    data: result,
+  });
+});

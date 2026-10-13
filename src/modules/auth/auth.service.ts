@@ -6,7 +6,9 @@ import { Event } from '../event/event.model.js';
 import config from '../../config/config.js';
 import { AppError } from '../../utils/AppError.js';
 import type { IMeta } from '../../utils/sendResponse.js';
-import { uploadToS3 } from '../../utils/s3.js';
+import { Employee } from '../employee/employee.model.js';
+import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
+import logger from '../../utils/logger.js';
 import { createOtpService, verifyOtpService as verifyOtpFromService } from '../otp/otp.service.js';
 import { sendOtpEmail } from '../../utils/sendEmail.js';
 import type {
@@ -18,6 +20,7 @@ import type {
   RefreshTokenInput,
   UpdateProfileInput,
   ChangePasswordInput,
+  DeleteAccountInput,
   RegisterResponse,
   AuthResponse,
   RefreshTokenResponse,
@@ -27,6 +30,7 @@ import type {
   UserProfileResponse,
   LogoutResponse,
   ChangePasswordResponse,
+  DeleteAccountResponse,
 } from './auth.interface.js';
 
 const generateAccessToken = (id: string, role: string): string => {
@@ -185,6 +189,10 @@ export const loginUserService = async (
     throw new AppError('Invalid credentials', 400);
   }
 
+  if (user.isDeleted) {
+    throw new AppError('This account has been deleted. Please contact support.', 403);
+  }
+
   if (!user.isActive) {
     throw new AppError('Your account is not active', 400);
   }
@@ -231,7 +239,7 @@ export const forgotPasswordService = async (
   const { email } = data;
 
   const user = await User.findOne({ email });
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('No account found with this email address', 404);
   }
 
@@ -331,7 +339,7 @@ export const resendForgotPasswordOtpService = async (
   const { email } = data;
 
   const user = await User.findOne({ email });
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('No account found with this email address', 404);
   }
 
@@ -362,7 +370,7 @@ export const resendActivationOtpService = async (
   const { email } = data;
 
   const user = await User.findOne({ email });
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('No account found with this email address', 404);
   }
 
@@ -424,7 +432,7 @@ export const getMeService = async (
   userId: string
 ): Promise<{ userProfile: UserProfileResponse; meta: IMeta }> => {
   const user = await User.findById(userId).select('-password');
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -466,7 +474,7 @@ export const refreshTokenService = async (
   }
 
   const user = await User.findById(decodedPayload.id);
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -494,7 +502,7 @@ export const logoutUserService = async (
   userId: string
 ): Promise<LogoutResponse> => {
   const user = await User.findById(userId);
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -512,7 +520,7 @@ export const updateProfileService = async (
   file?: Express.Multer.File | { [fieldname: string]: Express.Multer.File[] }
 ): Promise<UserProfileResponse> => {
   const user = await User.findById(userId);
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -604,7 +612,7 @@ export const changePasswordService = async (
   }
 
   const user = await User.findById(userId);
-  if (!user) {
+  if (!user || user.isDeleted) {
     throw new AppError('User not found', 404);
   }
 
@@ -621,6 +629,86 @@ export const changePasswordService = async (
   };
 };
 
+export const deleteAccountService = async (
+  userId: string,
+  options?: DeleteAccountInput
+): Promise<DeleteAccountResponse> => {
+  const user = await User.findById(userId);
+  if (!user || user.isDeleted) {
+    throw new AppError('User not found or account already deleted', 404);
+  }
 
+  const isHardDelete =
+    options?.hardDelete === true ||
+    options?.hardDelete === 'true';
 
+  if (isHardDelete) {
+    // 1. Cleanup user's profile image from S3 if present
+    if (user.profileImage && user.profileImage.includes('amazonaws.com')) {
+      try {
+        await deleteFromS3(user.profileImage);
+      } catch (err: any) {
+        logger.warn(`Failed to delete profile image from S3 for user ${userId}: ${err.message}`);
+      }
+    }
 
+    // 2. If HOST or BUSINESS, clean up business documents from S3 and remove BusinessProfile
+    if (user.role === 'HOST' || user.role === 'BUSINESS') {
+      const businessProfile = await BusinessProfile.findOne({ userId: user._id });
+      if (businessProfile) {
+        const docs = [
+          businessProfile.govtIdFrontImage,
+          businessProfile.govtIdBackImage,
+          businessProfile.businessLicenseFrontImage,
+          businessProfile.businessLicenseBackImage,
+        ];
+        for (const docUrl of docs) {
+          if (docUrl && docUrl.includes('amazonaws.com')) {
+            try {
+              await deleteFromS3(docUrl);
+            } catch (err: any) {
+              logger.warn(`Failed to delete business document from S3 for user ${userId}: ${err.message}`);
+            }
+          }
+        }
+        await BusinessProfile.deleteOne({ userId: user._id });
+      }
+
+      // Cleanup associated employee accounts under this employer
+      await Employee.deleteMany({ employerId: user._id });
+    }
+
+    // 3. Permanently remove the user document
+    await User.findByIdAndDelete(userId);
+
+    logger.info(`User account permanently hard deleted: ${userId} (${user.email})`);
+
+    return {
+      message: 'Account permanently deleted successfully',
+      deletedType: 'hard',
+    };
+  } else {
+    // Soft delete: Deactivate account, set isDeleted = true, revoke refresh token, release original email
+    const originalEmail = user.email;
+    const timestamp = Date.now();
+    const scrambledEmail = `deleted_${timestamp}_${originalEmail}`;
+
+    await User.findByIdAndUpdate(userId, {
+      $set: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        originalEmail,
+        email: scrambledEmail,
+        isActive: false,
+        refreshToken: '',
+      },
+    });
+
+    logger.info(`User account soft deleted successfully: ${userId} (original: ${originalEmail})`);
+
+    return {
+      message: 'Account deleted successfully',
+      deletedType: 'soft',
+    };
+  }
+};

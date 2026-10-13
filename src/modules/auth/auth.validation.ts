@@ -165,6 +165,22 @@ export const changePasswordSchema = z
     path: ['confirmPassword'],
   });
 
+export const deleteAccountSchema = {
+  query: z
+    .object({
+      hardDelete: z.enum(['true', 'false']).optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+  body: z
+    .object({
+      hardDelete: z.boolean().optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+};
+
+
 
 
 
