@@ -53,3 +53,34 @@ export const authorizeRoles = (...roles: string[]) => {
   };
 };
 
+/**
+ * Optional authentication middleware:
+ * If a valid Bearer token is provided, populates req.user.
+ * If no token or invalid token is provided, proceeds normally as unauthenticated visitor.
+ */
+export const optionalAuth = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith('Bearer')
+  ) {
+    try {
+      const token = req.headers.authorization.split(' ')[1];
+      if (token) {
+        const decoded = jwt.verify(token, config.jwtSecret) as {
+          id: string;
+          role: string;
+        };
+        req.user = { id: decoded.id, role: decoded.role };
+      }
+    } catch {
+      // Ignore token verification errors for optional auth
+    }
+  }
+  next();
+};
+
+

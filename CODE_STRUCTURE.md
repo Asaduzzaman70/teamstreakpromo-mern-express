@@ -87,14 +87,16 @@ teamstreakpromo-mern-express/
         ├── otp/                      # One-Time Password generation, TTL expiration, and verification
         ├── payment/                  # Stripe Connect onboarding, webhooks, refunds, transfers, payout sweeper
         ├── rewardCategory/           # Reward program categories
-        └── rewardSubCategory/        # Reward program sub-categories
+        ├── rewardSubCategory/        # Reward program sub-categories
+        ├── user/                     # Administrative user accounts, roles, and status management
+        └── content/                  # Legal & static pages CMS (Terms, Privacy Policy, About Us, custom pages)
 ```
 
 ---
 
 ## 3. Feature Modules Breakdown & Endpoint Mapping
 
-The project contains **12 distinct feature modules** inside `src/modules/`. Each module is self-contained and encapsulates its own domain logic:
+The project contains **14 distinct feature modules** inside `src/modules/`. Each module is self-contained and encapsulates its own domain logic:
 
 | Module | Core Responsibility | Route Prefix | Key Endpoints | Auth / Roles |
 | :--- | :--- | :--- | :--- | :--- |
@@ -110,6 +112,9 @@ The project contains **12 distinct feature modules** inside `src/modules/`. Each
 | **`payment`** | Stripe Connect host onboarding, dashboard login links, webhooks, checkout sessions, refund processing, automated payout sweeper. | `/api/payments` | `POST /webhook`<br>`POST /create-checkout-session`<br>`POST /create-connect-account`<br>`GET /account-status`<br>`POST /create-login-link`<br>`POST /events/:eventId/payout`<br>`POST /process-payouts`<br>`GET /events/:eventId/payout-status`<br>`POST /event-orders/:orderId/cancel` | Public (Webhook with signature)<br>Protected (`HOST`, `BUSINESS`, `ADMIN`) |
 | **`rewardCategory`** | Promotional and loyalty reward program categories. | `/api/reward-categories` | `POST /`<br>`GET /`<br>`GET /:id`<br>`PATCH /:id`<br>`DELETE /:id` | Read: Public<br>Mutations: `ADMIN` |
 | **`rewardSubCategory`**| Granular sub-classifications for promotional loyalty rewards. | `/api/reward-subcategories` | `POST /`<br>`GET /`<br>`GET /:id`<br>`PATCH /:id`<br>`DELETE /:id` | Read: Public<br>Mutations: `ADMIN` |
+| **`user`** | Administrative user management, platform analytics/stats, account suspension, role changes, and deletion. | `/api/users` | `GET /stats`<br>`GET /`<br>`GET /:id`<br>`PATCH /:id/status`<br>`PATCH /:id/role`<br>`DELETE /:id` | Protected: `ADMIN` |
+| **`content`** | Legal & Static Content CMS (Terms of Service, Privacy Policy, About Us, FAQ, custom pages, rich HTML/Markdown, slug upsert, category groupings). | `/api/contents` | `GET /`<br>`GET /:idOrSlug`<br>`POST /`<br>`PUT /upsert/:slug`<br>`PATCH /:idOrSlug`<br>`PATCH /:idOrSlug/status`<br>`DELETE /:idOrSlug` | Read: Public<br>Mutations: `ADMIN` |
+
 
 ---
 

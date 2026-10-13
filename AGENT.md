@@ -158,8 +158,17 @@ Interactive Swagger UI documentation is available when running the application s
 | `GET` | `/api/reward-subcategories/:id` | Fetch reward subcategory by ID | Public |
 | `PATCH` | `/api/reward-subcategories/:id` | Update reward subcategory | Yes (`ADMIN`) |
 | `DELETE` | `/api/reward-subcategories/:id` | Delete reward subcategory | Yes (`ADMIN`) |
+| **Content & CMS Module** | | | |
+| `GET` | `/api/contents` | Get list of static content & legal pages (filterable by category/status/search) | Public |
+| `GET` | `/api/contents/:idOrSlug` | Get single static page by unique slug (e.g. `privacy-policy`, `terms-of-service`) or ObjectId | Public |
+| `POST` | `/api/contents` | Create new static content page (with rich HTML/Markdown, SEO metadata, auto-slug) | Yes (`ADMIN`) |
+| `PUT` | `/api/contents/upsert/:slug` | Upsert static content by slug (creates if not existing, updates if existing) | Yes (`ADMIN`) |
+| `PATCH` | `/api/contents/:idOrSlug` | Update content page details | Yes (`ADMIN`) |
+| `PATCH` | `/api/contents/:idOrSlug/status` | Update publication status (`PUBLISHED`, `DRAFT`, `ARCHIVED`) | Yes (`ADMIN`) |
+| `DELETE` | `/api/contents/:idOrSlug` | Delete content page (protects system-critical pages) | Yes (`ADMIN`) |
 
 ---
+
 
 ## Key Architecture & Modular Responsibilities
 
