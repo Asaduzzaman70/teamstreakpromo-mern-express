@@ -17,6 +17,7 @@ import userRoutes from './modules/user/user.route.js';
 import contentRoutes from './modules/content/content.route.js';
 import customerSupportRoutes from './modules/customerSupport/customerSupport.route.js';
 import reviewRoutes from './modules/review/review.route.js';
+import partnerReviewRoutes from './modules/partnerReview/partnerReview.route.js';
 import { setupSwagger } from './docs/swagger.js';
 import requestLogger from './middlewares/requestLogger.js';
 
@@ -110,6 +111,8 @@ app.use('/api/content', contentRoutes);
 app.use('/api/customer-support', customerSupportRoutes);
 app.use('/api/support', customerSupportRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/partner-reviews', partnerReviewRoutes);
+app.use('/api/business-reviews', partnerReviewRoutes);
 
 
 

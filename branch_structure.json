@@ -1,0 +1,27 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "atikur",
+    "dev",
+    "hisam_v1",
+    "main",
+    "naim",
+    "origin"
+  ],
+  "parent": {
+    "atikur": "main",
+    "dev": "main",
+    "hisam_v1": "main",
+    "main": null,
+    "naim": "main",
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "atikur",
+    "dev",
+    "hisam_v1",
+    "naim",
+    "origin"
+  ]
+}

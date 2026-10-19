@@ -45,8 +45,23 @@ const getOrderById = catchAsync(async (req: AuthenticatedRequest, res: Response)
   });
 });
 
+const redeemOrder = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { id } = req.params;
+
+  const result = await OrderService.redeemOrder(id as string, userId, req.user?.role);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Order redeemed successfully',
+    data: result,
+  });
+});
+
 export const OrderController = {
   createOrder,
   getMyOrders,
   getOrderById,
+  redeemOrder,
 };

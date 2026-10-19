@@ -462,8 +462,45 @@ const getOrderById = async (userId: string, orderId: string, role?: string): Pro
   return order;
 };
 
+const redeemOrder = async (
+  orderId: string,
+  actorId: string,
+  actorRole?: string
+): Promise<IOrder> => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    throw new AppError('Order not found', 404);
+  }
+
+  if (order.status === 'REDEEMED') {
+    throw new AppError('Order is already redeemed', 400);
+  }
+
+  if (order.status === 'CANCELLED') {
+    throw new AppError('Cannot redeem a cancelled order', 400);
+  }
+
+  const isOwner = order.businessOwnerId?.toString() === actorId;
+  const isHost = order.hostId?.toString() === actorId;
+  const isUser = order.user?.toString() === actorId;
+  const isAdmin = actorRole === 'ADMIN';
+
+  if (!isOwner && !isHost && !isUser && !isAdmin) {
+    throw new AppError('Not authorized to redeem this order', 403);
+  }
+
+  order.status = 'REDEEMED';
+  await order.save();
+
+  logger.info(
+    `[OrderService] Order ${orderId} marked as REDEEMED by user ${actorId} (${actorRole})`
+  );
+  return order;
+};
+
 export const OrderService = {
   createOrder,
   getMyOrders,
   getOrderById,
+  redeemOrder,
 };
