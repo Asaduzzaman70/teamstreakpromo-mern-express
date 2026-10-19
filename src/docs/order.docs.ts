@@ -251,4 +251,62 @@ export const orderDocs = {
       },
     },
   },
+  '/api/orders/{id}/redeem': {
+    patch: {
+      summary: 'Redeem an order [Role: USER, BUSINESS, HOST, ADMIN]',
+      description:
+        '**Authorized Roles**: `USER`, `BUSINESS`, `HOST`, `ADMIN`.\n\nMarks an order status as `REDEEMED` when the user presents their QR code and collects the reward from the Business Partner or event venue. Once redeemed, the user becomes eligible to submit a review for the Business Partner and product.',
+      tags: ['Order'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'id',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Order ObjectId',
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Order redeemed successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'Order redeemed successfully' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      _id: { type: 'string', example: '6aa2680cf993a4a37bf63a9c' },
+                      status: { type: 'string', example: 'REDEEMED' },
+                      itemType: { type: 'string', example: 'MARKETPLACE' },
+                      quantity: { type: 'number', example: 1 },
+                      updatedAt: { type: 'string', format: 'date-time' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': {
+          description: 'Order is already redeemed or cancelled',
+        },
+        '401': {
+          description: 'Unauthorized',
+        },
+        '403': {
+          description: 'Forbidden: not authorized to redeem this order',
+        },
+        '404': {
+          description: 'Order not found',
+        },
+      },
+    },
+  },
 };
+

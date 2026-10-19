@@ -24,8 +24,14 @@ router.get(
 
 router.get(
   '/:id',
-  authorizeRoles('USER', 'ADMIN'),
+  authorizeRoles('USER', 'ADMIN', 'BUSINESS', 'HOST'),
   OrderController.getOrderById
+);
+
+router.patch(
+  '/:id/redeem',
+  authorizeRoles('USER', 'BUSINESS', 'HOST', 'ADMIN'),
+  OrderController.redeemOrder
 );
 
 export const orderRoutes = router;
