@@ -14,6 +14,7 @@ import { eventOrderDocs } from './eventOrder.docs.js';
 import { userDocs } from './user.docs.js';
 import { contentDocs } from './content.docs.js';
 import { customerSupportDocs } from './customerSupport.docs.js';
+import { reviewDocs } from './review.docs.js';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -57,6 +58,7 @@ const options: swaggerJsdoc.Options = {
       ...userDocs,
       ...contentDocs,
       ...customerSupportDocs,
+      ...reviewDocs,
     },
   },
   apis: [],
