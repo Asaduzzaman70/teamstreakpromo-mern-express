@@ -920,6 +920,34 @@ export const getAdminEventsService = async (
   // Filter by event date range / date
   applyDateFilter(filter, query);
 
+  // Filter by active status (isActive: true / false)
+  if (query.isActive !== undefined && query.isActive !== '') {
+    const isActive = query.isActive === true || query.isActive === 'true';
+    if (isActive) {
+      filter.isActive = { $ne: false };
+    } else {
+      filter.isActive = false;
+    }
+  }
+
+  // Filter by timeline status (ONGOING, UPCOMING, COMPLETED/ENDED, ACTIVE, INACTIVE)
+  if (query.status && query.status !== 'ALL' && query.status !== 'all') {
+    const s = query.status.toString().trim().toUpperCase();
+    const now = new Date();
+    if (s === 'UPCOMING') {
+      filter.startDate = { ...(filter.startDate || {}), $gt: now };
+    } else if (s === 'ONGOING' || s === 'LIVE') {
+      filter.startDate = { ...(filter.startDate || {}), $lte: now };
+      filter.endDate = { ...(filter.endDate || {}), $gte: now };
+    } else if (s === 'COMPLETED' || s === 'ENDED') {
+      filter.endDate = { ...(filter.endDate || {}), $lt: now };
+    } else if (s === 'ACTIVE') {
+      filter.isActive = { $ne: false };
+    } else if (s === 'INACTIVE') {
+      filter.isActive = false;
+    }
+  }
+
   // Filter by price range (ticket price)
   if (query.minPrice !== undefined || query.maxPrice !== undefined) {
     const priceFilter: Record<string, any> = {};
@@ -993,6 +1021,7 @@ export const getAdminEventsService = async (
     startDate: 'startDate',
     title: 'title',
     createdAt: 'createdAt',
+    rewardPoints: 'rewards.pointsRequired',
   };
   const sortOption: Record<string, any> = {};
   sortOption[sortFieldMap[sortBy] || 'createdAt'] = sortOrder;
