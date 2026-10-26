@@ -129,7 +129,8 @@ src/modules/<moduleName>/
 ├── <moduleName>.validation.ts  # Zod schemas for request validation
 ├── <moduleName>.service.ts     # Business logic and database operations
 ├── <moduleName>.controller.ts  # HTTP request/response handler
-└── <moduleName>.route.ts       # Express router definitions and middleware chaining
+├── <moduleName>.route.ts       # Express router definitions and middleware chaining
+└── README.md                   # Dedicated module architecture, schema, and API documentation
 ```
 
 ### Layer Responsibilities & Strict Boundaries:
@@ -166,6 +167,10 @@ src/modules/<moduleName>/
    - Assembles middleware chains in exact execution order:
      `protect` ➔ `authorizeRoles(...)` ➔ Multer file parser (if applicable) ➔ `validateRequest(...)` ➔ Controller handler.
    - Dispatches requests to the appropriate controller method.
+
+7. **`README.md`**:
+   - Comprehensive module guide documenting domain overview, file roles, Mongoose data schema, complete API endpoint tables, business rules, and sequence diagrams.
+   - **Architectural Rule**: Whenever an agent or developer modifies any code within a module (`route`, `controller`, `service`, `model`, `validation`, `interface`), they **MUST immediately update that module's `README.md`** so the documentation never becomes obsolete.
 
 ---
 

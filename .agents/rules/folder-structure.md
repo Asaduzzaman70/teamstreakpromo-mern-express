@@ -55,13 +55,14 @@ teamstreakpromo-mern-express/
 - **Purpose**: Encapsulated feature domains.
 - **Naming Convention for Folders**: Strictly `camelCase` (e.g., `businessProfile`, `eventOrder`, `rewardSubCategory`).
 - **File Structure Invariant**:
-  Each feature module directory must contain exactly:
+  Each feature module directory must contain:
   1. `<moduleName>.interface.ts`
   2. `<moduleName>.model.ts`
   3. `<moduleName>.validation.ts`
   4. `<moduleName>.service.ts`
   5. `<moduleName>.controller.ts`
   6. `<moduleName>.route.ts`
+  7. `README.md` (Dedicated module documentation - MUST be updated whenever module code is modified)
 
 ### 2.5 `src/utils/`
 - **Purpose**: Generic utilities, helpers, and base classes.

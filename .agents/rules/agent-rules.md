@@ -18,6 +18,9 @@ This document defines operational, behavioral, and architectural guidelines that
 4. **Git Commit Messages**:
    - Follow detailed, descriptive commit message conventions.
    - Clearly state **what** changed and **why** it changed (e.g. `feat(event): enforce 30-event monthly quota per host to prevent resource spamming`).
+5. **No Local Machine Paths in Documentation**:
+   - **NEVER** use or commit local PC absolute paths (e.g. `C:\Users\...` or `file:///...`) in any markdown files, documentation, links, or code comments.
+   - Always use **relative paths** (e.g. `.agents/rules/agent-rules.md` or `CODE_STRUCTURE.md`) so the repository remains fully portable across different machines, operating systems, and developer environments.
 
 ---
 
@@ -108,3 +111,18 @@ Whenever an endpoint is added, modified, or deleted:
 1. Update or create the corresponding Swagger spec file in `src/docs/<module>.docs.ts`.
 2. Ensure the doc is registered in `src/docs/swagger.ts`.
 3. Update `CODE_STRUCTURE.md` and `AGENT.md` endpoint tables.
+
+---
+
+## 7. Mandatory Module README Maintenance
+
+Every domain module in `src/modules/<moduleName>/` contains a dedicated `README.md` file documenting its business purpose, file structure, data model, API endpoints, lifecycle workflows, and developer gotchas.
+
+**MANDATORY INVARIANT FOR ALL AGENTS & DEVELOPERS**:
+Whenever you modify, add, or refactor any code within a module (including `route`, `controller`, `service`, `model`, `validation`, or `interface`):
+1. **Immediately update that module's `README.md`**:
+   - If an endpoint was added/changed/removed, update the **Endpoints & API Reference** table.
+   - If a schema or interface changed, update the **Data Model Reference** table.
+   - If business logic, quotas, limits, or workflows changed, update the **Key Capabilities / Workflows** section.
+2. **Never leave documentation out of sync**: No code changes to a module are considered complete without updating its corresponding `README.md`.
+

@@ -25,6 +25,10 @@ All AI agents and developers operating in this repository must strictly adhere t
    - Write descriptive, detailed commit messages explaining **what** was changed and **why**.
 6. **No Console Logs**:
    - Use Winston `logger` (`src/utils/logger.js`). Never use `console.log` or `console.error`.
+7. **Module README Synchronization (MANDATORY)**:
+   - Every feature module in `src/modules/<moduleName>/` has a dedicated `README.md`. Whenever an agent or developer updates, adds, or modifies any module code (route, controller, service, model, validation, or interface), they **MUST immediately update that module's `README.md`** to keep documentation in sync.
+8. **Portable Relative Paths (MANDATORY)**:
+   - **NEVER** write or commit local machine absolute paths (e.g. `C:\Users\...` or `file:///...`) in documentation, markdown files, or code. Always use **repository-relative paths** so the project remains fully portable across any computer or OS.
 
 ---
 
@@ -34,13 +38,14 @@ Detailed rules and templates are organized within the `.agents/rules/` directory
 
 | Rule File | Topic & Scope |
 | :--- | :--- |
-| **[.agents/rules/agent-rules.md](file:///c:/Users/asdud/Desktop/Softvence/Teamstreakpromo/teamstreakpromo-mern-express/.agents/rules/agent-rules.md)** | Agent behavioral guidelines, safety rules, tool usage, verification standards, and git commit practices. |
-| **[.agents/rules/code-structure.md](file:///c:/Users/asdud/Desktop/Softvence/Teamstreakpromo/teamstreakpromo-mern-express/.agents/rules/code-structure.md)** | Layered architecture rules, code patterns, interface/model/service/controller templates, and strict anti-patterns. |
-| **[.agents/rules/folder-structure.md](file:///c:/Users/asdud/Desktop/Softvence/Teamstreakpromo/teamstreakpromo-mern-express/.agents/rules/folder-structure.md)** | Directory tree standards, module file organization, placement rules for new code, and naming conventions. |
+| **[.agents/rules/agent-rules.md](.agents/rules/agent-rules.md)** | Agent behavioral guidelines, safety rules, tool usage, verification standards, and git commit practices. |
+| **[.agents/rules/code-structure.md](.agents/rules/code-structure.md)** | Layered architecture rules, code patterns, interface/model/service/controller templates, and strict anti-patterns. |
+| **[.agents/rules/folder-structure.md](.agents/rules/folder-structure.md)** | Directory tree standards, module file organization, placement rules for new code, and naming conventions. |
 
 ---
 
 ## 3. Key Architectural Guides
 
-- **[CODE_STRUCTURE.md](file:///c:/Users/asdud/Desktop/Softvence/Teamstreakpromo/teamstreakpromo-mern-express/CODE_STRUCTURE.md)**: Comprehensive architectural guide covering all 12 modules, full endpoint listings, cross-cutting concerns, and domain rules.
-- **[AGENT.md](file:///c:/Users/asdud/Desktop/Softvence/Teamstreakpromo/teamstreakpromo-mern-express/AGENT.md)**: Developer & agent reference manual with complete endpoint tables, domain rules, and Mermaid class diagrams.
+- **[CODE_STRUCTURE.md](CODE_STRUCTURE.md)**: Comprehensive architectural guide covering all 12 modules, full endpoint listings, cross-cutting concerns, and domain rules.
+- **[AGENT.md](AGENT.md)**: Developer & agent reference manual with complete endpoint tables, domain rules, and Mermaid class diagrams.
+
