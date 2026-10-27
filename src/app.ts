@@ -19,6 +19,7 @@ import customerSupportRoutes from './modules/customerSupport/customerSupport.rou
 import reviewRoutes from './modules/review/review.route.js';
 import partnerReviewRoutes from './modules/partnerReview/partnerReview.route.js';
 import { hostAnalyticsRoutes } from './modules/hostAnalytics/hostAnalytics.route.js';
+import { businessPartnerAnalyticsRoutes } from './modules/businessPartnerAnalytics/businessPartnerAnalytics.route.js';
 import { setupSwagger } from './docs/swagger.js';
 import requestLogger from './middlewares/requestLogger.js';
 
@@ -115,6 +116,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/partner-reviews', partnerReviewRoutes);
 app.use('/api/business-reviews', partnerReviewRoutes);
 app.use('/api/host-analytics', hostAnalyticsRoutes);
+app.use('/api/business-partner-analytics', businessPartnerAnalyticsRoutes);
 
 
 
