@@ -171,3 +171,4 @@ export const deleteEmployeeService = async (
 
   await Employee.deleteOne({ _id: employeeId, employerId });
 };
+

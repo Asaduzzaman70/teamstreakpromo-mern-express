@@ -11,9 +11,6 @@ import {
 } from './employee.service.js';
 import type { EmployerType } from './employee.interface.js';
 
-// @desc    Create a new employee (for HOST / BUSINESS)
-// @route   POST /api/employees
-// @access  Private (HOST, BUSINESS)
 export const createEmployee = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employerId = req.user!.id;
@@ -29,9 +26,6 @@ export const createEmployee = catchAsync(
   }
 );
 
-// @desc    Get all employees for the logged-in HOST / BUSINESS employer
-// @route   GET /api/employees
-// @access  Private (HOST, BUSINESS)
 export const getEmployerEmployees = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employerId = req.user!.id;
@@ -47,9 +41,6 @@ export const getEmployerEmployees = catchAsync(
   }
 );
 
-// @desc    Get an employee by ID (for logged-in HOST / BUSINESS employer)
-// @route   GET /api/employees/:id
-// @access  Private (HOST, BUSINESS)
 export const getEmployeeById = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employerId = req.user!.id;
@@ -65,9 +56,6 @@ export const getEmployeeById = catchAsync(
   }
 );
 
-// @desc    Update an employee by ID (for logged-in HOST / BUSINESS employer)
-// @route   PATCH /api/employees/:id
-// @access  Private (HOST, BUSINESS)
 export const updateEmployee = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employerId = req.user!.id;
@@ -83,9 +71,6 @@ export const updateEmployee = catchAsync(
   }
 );
 
-// @desc    Delete an employee by ID (for logged-in HOST / BUSINESS employer)
-// @route   DELETE /api/employees/:id
-// @access  Private (HOST, BUSINESS)
 export const deleteEmployee = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employerId = req.user!.id;

@@ -10,9 +10,6 @@ import {
   logoutEmployeeService,
 } from './employeeAuth.service.js';
 
-// @desc    Authenticate employee (HOST or BUSINESS staff) & get tokens
-// @route   POST /api/employee-auth/login
-// @access  Public
 export const loginEmployee = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     const result = await loginEmployeeService(req.body);
@@ -25,9 +22,6 @@ export const loginEmployee = catchAsync(
   }
 );
 
-// @desc    Refresh employee access token using refresh token
-// @route   POST /api/employee-auth/refresh-token
-// @access  Public
 export const refreshEmployeeToken = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
     const result = await refreshEmployeeTokenService(req.body);
@@ -40,9 +34,6 @@ export const refreshEmployeeToken = catchAsync(
   }
 );
 
-// @desc    Get currently logged-in employee profile & employer details
-// @route   GET /api/employee-auth/me
-// @access  Private (EMPLOYEE)
 export const getEmployeeMe = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employeeId = req.user!.id;
@@ -56,9 +47,6 @@ export const getEmployeeMe = catchAsync(
   }
 );
 
-// @desc    Change logged-in employee password
-// @route   PATCH /api/employee-auth/change-password
-// @access  Private (EMPLOYEE)
 export const changeEmployeePassword = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employeeId = req.user!.id;
@@ -72,9 +60,6 @@ export const changeEmployeePassword = catchAsync(
   }
 );
 
-// @desc    Logout logged-in employee (invalidate refresh token)
-// @route   POST /api/employee-auth/logout
-// @access  Private (EMPLOYEE)
 export const logoutEmployee = catchAsync(
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     const employeeId = req.user!.id;

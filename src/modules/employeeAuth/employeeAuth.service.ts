@@ -96,7 +96,6 @@ export const loginEmployeeService = async (
     );
   }
 
-  // Verify parent employer account is active and not suspended/deleted
   const employer = await User.findById(employee.employerId)
     .select('_id isActive isSuspend isDeleted')
     .lean();

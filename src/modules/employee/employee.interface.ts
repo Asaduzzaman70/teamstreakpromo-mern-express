@@ -39,3 +39,4 @@ export interface IEmployeeQueryFilter {
   search?: string;
   isActive?: boolean | string;
 }
+

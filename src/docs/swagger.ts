@@ -6,6 +6,7 @@ import { categoryDocs } from './category.docs.js';
 import { eventDocs } from './event.docs.js';
 import { employeeDocs } from './employee.docs.js';
 import { employeeAuthDocs } from './employeeAuth.docs.js';
+import { employeePortalDocs } from './employeePortal.docs.js';
 import { paymentDocs } from './payment.docs.js';
 import { rewardCategoryDocs } from './rewardCategory.docs.js';
 import { rewardSubCategoryDocs } from './rewardSubCategory.docs.js';
@@ -54,6 +55,7 @@ const options: swaggerJsdoc.Options = {
       ...eventDocs,
       ...employeeDocs,
       ...employeeAuthDocs,
+      ...employeePortalDocs,
       ...paymentDocs,
       ...rewardCategoryDocs,
       ...rewardSubCategoryDocs,
@@ -99,6 +101,7 @@ export const setupSwagger = (app: Express): void => {
       </head>
       <body>
         <div id="swagger-ui"></div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-bundle.script.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-bundle.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.18.2/swagger-ui-standalone-preset.js"></script>
         <script>
