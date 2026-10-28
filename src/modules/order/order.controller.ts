@@ -6,7 +6,7 @@ import { OrderService } from './order.service.js';
 
 const createOrder = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  
+
   const result = await OrderService.createOrder(userId, req.body);
 
   sendResponse(res, {
@@ -19,13 +19,43 @@ const createOrder = catchAsync(async (req: AuthenticatedRequest, res: Response) 
 
 const getMyOrders = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
-  
+  const role = req.user?.role;
+
+  // If called by BUSINESS, EMPLOYEE, or HOST, return their organization's reward orders & redemption statuses
+  if (role === 'BUSINESS' || role === 'EMPLOYEE' || role === 'HOST') {
+    const result = await OrderService.getBusinessOrders(userId, role, req.query);
+
+    sendResponse(res, {
+      statusCode: 200,
+      success: true,
+      message: 'Business reward orders retrieved successfully',
+      meta: result.meta,
+      data: result.data,
+    });
+    return;
+  }
+
   const result = await OrderService.getMyOrders(userId, req.query);
 
   sendResponse(res, {
     statusCode: 200,
     success: true,
     message: 'Orders retrieved successfully',
+    meta: result.meta,
+    data: result.data,
+  });
+});
+
+const getBusinessOrders = catchAsync(async (req: AuthenticatedRequest, res: Response) => {
+  const actorId = req.user!.id;
+  const actorRole = req.user?.role;
+
+  const result = await OrderService.getBusinessOrders(actorId, actorRole, req.query);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'Business reward orders retrieved successfully',
     meta: result.meta,
     data: result.data,
   });
@@ -62,6 +92,7 @@ const redeemOrder = catchAsync(async (req: AuthenticatedRequest, res: Response) 
 export const OrderController = {
   createOrder,
   getMyOrders,
+  getBusinessOrders,
   getOrderById,
   redeemOrder,
 };

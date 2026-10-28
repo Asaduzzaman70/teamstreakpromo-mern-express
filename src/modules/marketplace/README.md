@@ -60,7 +60,7 @@ Base Prefix: `/api/marketplaces`
 | `GET` | `/stats` | No (Public) | Anyone | Platform marketplace summary statistics. |
 | `GET` | `/:id` | No (Public) | Anyone | Retrieve detailed view of a single listing with owner and category populated. |
 | `POST` | `/` | Yes | `BUSINESS`, `ADMIN` | Create a new listing with photo uploads. |
-| `GET` | `/my-marketplaces`| Yes | `BUSINESS`, `ADMIN` | List all marketplace items created by the authenticated business owner. |
+| `GET` | `/my-marketplaces`| Yes | `BUSINESS`, `EMPLOYEE`, `ADMIN` | List all marketplace items belonging to the authenticated business owner (or the Business Partner Employee's employer). |
 | `PATCH` | `/:id` | Yes | `BUSINESS` (owner), `ADMIN` | Update listing details, change photo assets, or adjust inventory. |
 | `DELETE` | `/:id` | Yes | `BUSINESS` (owner), `ADMIN` | Delete listing and clean up images from AWS S3. |
 

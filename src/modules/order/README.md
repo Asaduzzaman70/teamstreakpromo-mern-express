@@ -64,9 +64,10 @@ All routes require authentication via `protect`.
 | Method | Endpoint | Allowed Roles | Description |
 | :--- | :--- | :--- | :--- |
 | `POST` | `/` | `USER` | Redeem points for a Marketplace or Event item. Deducts points and creates QR code. |
-| `GET` | `/my-orders` | `USER` | Get the logged-in user's order redemption history with pagination and status filter. |
-| `GET` | `/:id` | `USER`, `ADMIN`, `BUSINESS`, `HOST`, `EMPLOYEE` | Get detailed order profile with populated user, item, and QR code. |
-| `PATCH` | `/:id/redeem` | `USER`, `BUSINESS`, `HOST`, `EMPLOYEE`, `ADMIN` | Merchant/Host or their Employee verifies and marks the order as fulfilled (`REDEEMED`). |
+| `GET` | `/my-orders` | `USER`, `BUSINESS`, `EMPLOYEE`, `HOST` | Get the logged-in user's order history (or for `BUSINESS` / `EMPLOYEE` / `HOST`, their organization's reward orders & `isRedeemed` status). |
+| `GET` | `/business-orders` | `BUSINESS`, `EMPLOYEE`, `HOST`, `ADMIN` | View the Business Partner's reward orders and check whether users have clicked the Redeem button (`status: 'CLAIMED' \| 'REDEEMED'`, `isRedeemed: true \| false`). |
+| `GET` | `/:id` | `USER`, `ADMIN`, `BUSINESS`, `HOST`, `EMPLOYEE` | Get detailed order profile with populated user, item, `status`, `isRedeemed`, and QR code. |
+| `PATCH` | `/:id/redeem` | `USER`, `BUSINESS`, `HOST`, `ADMIN` | Marks the order as fulfilled (`REDEEMED`). Employees (`EMPLOYEE`) **cannot** redeem orders; they can only view the redemption status. |
 
 ---
 

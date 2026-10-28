@@ -427,7 +427,7 @@ const getMyOrders = async (userId: string, query: any) => {
   };
 };
 
-const getOrderById = async (userId: string, orderId: string, role?: string): Promise<IOrder> => {
+const getOrderById = async (userId: string, orderId: string, role?: string): Promise<any> => {
   const filter: any = { _id: orderId };
   if (role === 'USER') {
     filter.user = userId;
@@ -442,10 +442,11 @@ const getOrderById = async (userId: string, orderId: string, role?: string): Pro
     if (!employee || !employee.isActive) {
       throw new AppError('Employee account is inactive or not found', 403);
     }
-    filter.$or = [
-      { businessOwnerId: employee.employerId },
-      { hostId: employee.employerId },
-    ];
+    if (employee.employerType === 'BUSINESS') {
+      filter.businessOwnerId = employee.employerId;
+    } else {
+      filter.hostId = employee.employerId;
+    }
   }
 
   const order = await Order.findOne(filter)
@@ -539,7 +540,132 @@ const getOrderById = async (userId: string, orderId: string, role?: string): Pro
     }
   }
 
-  return order;
+  const orderObj = order.toObject ? order.toObject() : order;
+  return {
+    ...orderObj,
+    isRedeemed: order.status === 'REDEEMED',
+  };
+};
+
+const getBusinessOrders = async (actorId: string, actorRole: string | undefined, query: any) => {
+  const page = Math.max(1, parseInt(query.page as string, 10) || 1);
+  const limit = Math.max(1, parseInt(query.limit as string, 10) || 10);
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, any> = {};
+
+  if (actorRole === 'EMPLOYEE') {
+    const employee = await Employee.findById(actorId)
+      .select('employerId employerType isActive')
+      .lean();
+
+    if (!employee || !employee.isActive) {
+      throw new AppError('Employee account is inactive or not found', 403);
+    }
+
+    if (employee.employerType === 'BUSINESS') {
+      filter.businessOwnerId = employee.employerId;
+      filter.itemType = 'MARKETPLACE';
+    } else {
+      filter.hostId = employee.employerId;
+      filter.itemType = 'EVENT';
+    }
+  } else if (actorRole === 'BUSINESS') {
+    filter.businessOwnerId = actorId;
+    filter.itemType = 'MARKETPLACE';
+  } else if (actorRole === 'HOST') {
+    filter.hostId = actorId;
+    filter.itemType = 'EVENT';
+  } else if (actorRole !== 'ADMIN') {
+    throw new AppError('Not authorized to view business reward orders', 403);
+  }
+
+  if (query.status) {
+    filter.status = query.status;
+  }
+
+  if (query.itemId && Types.ObjectId.isValid(String(query.itemId))) {
+    filter.itemId = new Types.ObjectId(String(query.itemId));
+  }
+
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate('itemId', 'title description location photos points quantity claimQuantity')
+      .populate('eventId', 'title description placeName images rewards')
+      .populate('user', 'name email phoneNumber profileImage')
+      .sort({ updatedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Order.countDocuments(filter),
+  ]);
+
+  const totalPage = Math.ceil(total / limit);
+
+  const formattedOrders = orders.map((order) => {
+    let title = '';
+    let description = '';
+    let location = '';
+    let photos: string[] = [];
+    const points = order.itemPoints || 0;
+
+    if (order.itemType === 'MARKETPLACE' && order.itemId) {
+      const marketplace = order.itemId as any;
+      title = marketplace.title || '';
+      description = marketplace.description || '';
+      location = marketplace.location || '';
+      photos = marketplace.photos || [];
+    } else if (order.itemType === 'EVENT' && order.eventId) {
+      const event = order.eventId as any;
+      if (event.rewards && Array.isArray(event.rewards) && order.rewardItemId) {
+        const reward = event.rewards.find(
+          (r: any) => r._id?.toString() === order.rewardItemId?.toString()
+        );
+        if (reward) {
+          title = reward.title || event.title || '';
+          description = reward.description || event.description || '';
+          photos = reward.images && reward.images.length > 0 ? reward.images : event.images || [];
+        } else {
+          title = event.title || '';
+          description = event.description || '';
+          photos = event.images || [];
+        }
+      } else {
+        title = event.title || '';
+        description = event.description || '';
+        photos = event.images || [];
+      }
+      location = event.placeName || '';
+    }
+
+    return {
+      _id: order._id,
+      orderId: order._id.toString(),
+      itemType: order.itemType,
+      itemId: (order.itemId as any)?._id || order.itemId,
+      title,
+      photos,
+      description,
+      location,
+      points,
+      quantity: order.quantity,
+      status: order.status,
+      isRedeemed: order.status === 'REDEEMED',
+      user: order.user,
+      qrCode: order.qrCode || '',
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage,
+    },
+    data: formattedOrders,
+  };
 };
 
 const redeemOrder = async (
@@ -547,6 +673,13 @@ const redeemOrder = async (
   actorId: string,
   actorRole?: string
 ): Promise<IOrder> => {
+  if (actorRole === 'EMPLOYEE') {
+    throw new AppError(
+      'Forbidden: Employees cannot redeem rewards. Only the user can click redeem; employees can only view the redemption status.',
+      403
+    );
+  }
+
   const order = await Order.findById(orderId);
   if (!order) {
     throw new AppError('Order not found', 404);
@@ -564,23 +697,8 @@ const redeemOrder = async (
   const isHost = order.hostId?.toString() === actorId;
   const isUser = order.user?.toString() === actorId;
   const isAdmin = actorRole === 'ADMIN';
-  let isAuthorizedEmployee = false;
 
-  if (actorRole === 'EMPLOYEE') {
-    const employee = await Employee.findById(actorId)
-      .select('employerId employerType isActive')
-      .lean();
-    if (
-      employee &&
-      employee.isActive &&
-      (order.businessOwnerId?.toString() === employee.employerId.toString() ||
-        order.hostId?.toString() === employee.employerId.toString())
-    ) {
-      isAuthorizedEmployee = true;
-    }
-  }
-
-  if (!isOwner && !isHost && !isUser && !isAdmin && !isAuthorizedEmployee) {
+  if (!isOwner && !isHost && !isUser && !isAdmin) {
     throw new AppError('Not authorized to redeem this order', 403);
   }
 
@@ -603,6 +721,7 @@ const redeemOrder = async (
 export const OrderService = {
   createOrder,
   getMyOrders,
+  getBusinessOrders,
   getOrderById,
   redeemOrder,
 };

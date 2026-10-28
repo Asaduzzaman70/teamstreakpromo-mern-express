@@ -18,8 +18,15 @@ router.post(
 
 router.get(
   '/my-orders',
-  authorizeRoles('USER'),
+  authorizeRoles('USER', 'BUSINESS', 'EMPLOYEE', 'HOST'),
   OrderController.getMyOrders
+);
+
+// Business Partner & Business Partner Employee view reward claim/redemption list & status
+router.get(
+  '/business-orders',
+  authorizeRoles('BUSINESS', 'EMPLOYEE', 'HOST', 'ADMIN'),
+  OrderController.getBusinessOrders
 );
 
 router.get(
@@ -28,9 +35,10 @@ router.get(
   OrderController.getOrderById
 );
 
+// Employees CANNOT redeem orders (only USER, BUSINESS, HOST, ADMIN)
 router.patch(
   '/:id/redeem',
-  authorizeRoles('USER', 'BUSINESS', 'HOST', 'EMPLOYEE', 'ADMIN'),
+  authorizeRoles('USER', 'BUSINESS', 'HOST', 'ADMIN'),
   OrderController.redeemOrder
 );
 

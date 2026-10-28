@@ -1,6 +1,7 @@
 import { Marketplace, type IMarketplace } from './marketplace.model.js';
 import { RewardCategory } from '../rewardCategory/rewardCategory.model.js';
 import { RewardSubCategory } from '../rewardSubCategory/rewardSubCategory.model.js';
+import { Employee } from '../employee/employee.model.js';
 import { AppError } from '../../utils/AppError.js';
 import { escapeRegex } from '../../utils/escapeRegex.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
@@ -237,6 +238,38 @@ export const getAllMarketplacesService = async (
     },
     result: marketplaces.map(formatMarketplaceResponse),
   };
+};
+
+export const getMyMarketplacesService = async (
+  actorId: string,
+  actorRole: string | undefined,
+  query: MarketplaceQuery
+): Promise<{ meta: IMeta; result: any[] }> => {
+  let targetBusinessOwnerId = actorId;
+
+  if (actorRole === 'EMPLOYEE') {
+    const employee = await Employee.findById(actorId)
+      .select('employerId employerType isActive')
+      .lean();
+
+    if (!employee || !employee.isActive) {
+      throw new AppError('Employee account is inactive or not found.', 403);
+    }
+
+    if (employee.employerType !== 'BUSINESS') {
+      throw new AppError(
+        'Forbidden: Only Business Partner employees can view business marketplace rewards.',
+        403
+      );
+    }
+
+    targetBusinessOwnerId = employee.employerId.toString();
+  }
+
+  return getAllMarketplacesService({
+    ...query,
+    businessOwnerId: targetBusinessOwnerId,
+  });
 };
 
 export const getMarketplaceByIdService = async (id: string): Promise<any> => {

@@ -28,7 +28,7 @@ router.get('/', getAllMarketplaces);
 router.get(
   '/my-marketplaces',
   protect,
-  authorizeRoles('BUSINESS', 'ADMIN'),
+  authorizeRoles('BUSINESS', 'EMPLOYEE', 'ADMIN'),
   getMyMarketplaces
 );
 router.get('/stats', getMarketplaceStats);
@@ -49,4 +49,3 @@ router.delete(
 );
 
 export const MarketplaceRoutes = router;
-

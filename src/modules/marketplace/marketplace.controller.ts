@@ -5,6 +5,7 @@ import { sendResponse } from '../../utils/sendResponse.js';
 import {
   createMarketplaceService,
   getAllMarketplacesService,
+  getMyMarketplacesService,
   getMarketplaceByIdService,
   updateMarketplaceService,
   deleteMarketplaceService,
@@ -25,10 +26,6 @@ export const createMarketplace = catchAsync(async (req: AuthenticatedRequest, re
   });
 });
 
-// @desc    Get all marketplace items with optional search and filters
-// @route   GET /api/marketplace
-// @access  Public
-
 // @desc    Get marketplace statistics summary
 // @route   GET /api/marketplaces/stats
 // @access  Public
@@ -41,6 +38,9 @@ export const getMarketplaceStats = catchAsync(async (_req: Request, res: Respons
   });
 });
 
+// @desc    Get all marketplace items with optional search and filters
+// @route   GET /api/marketplace
+// @access  Public
 export const getAllMarketplaces = catchAsync(async (req: Request, res: Response): Promise<void> => {
   const { meta, result } = await getAllMarketplacesService(req.query);
   sendResponse(res, {
@@ -51,15 +51,13 @@ export const getAllMarketplaces = catchAsync(async (req: Request, res: Response)
   });
 });
 
-// @desc    Get logged-in business owner's marketplace items from token
+// @desc    Get logged-in business owner's (or Business Partner Employee's employer's) marketplace items
 // @route   GET /api/marketplaces/my-marketplaces
-// @access  Private (BUSINESS)
+// @access  Private (BUSINESS, EMPLOYEE, ADMIN)
 export const getMyMarketplaces = catchAsync(async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-  const businessOwnerId = req.user!.id;
-  const { meta, result } = await getAllMarketplacesService({
-    ...req.query,
-    businessOwnerId,
-  });
+  const actorId = req.user!.id;
+  const actorRole = req.user!.role;
+  const { meta, result } = await getMyMarketplacesService(actorId, actorRole, req.query);
   sendResponse(res, {
     statusCode: 200,
     message: 'My marketplace items retrieved successfully',

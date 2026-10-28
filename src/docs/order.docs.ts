@@ -182,9 +182,52 @@ export const orderDocs = {
       },
     },
   },
+  '/api/orders/business-orders': {
+    get: {
+      summary:
+        'Get Business Partner reward orders & redemption status (Access: BUSINESS, EMPLOYEE, HOST, ADMIN)',
+      description:
+        'Allows a Business Partner (`BUSINESS`) or Business Partner Employee (`EMPLOYEE` with `employerType: "BUSINESS"`) to view their organization\'s reward orders and check whether the customer has clicked the Redeem button (`status: "CLAIMED" | "REDEEMED"`, `isRedeemed: true | false`). Employees have read-only access and cannot trigger redemption.',
+      tags: ['Order'],
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: 'page',
+          in: 'query',
+          description: 'Page number',
+          schema: { type: 'integer', default: 1 },
+        },
+        {
+          name: 'limit',
+          in: 'query',
+          description: 'Items per page',
+          schema: { type: 'integer', default: 10 },
+        },
+        {
+          name: 'status',
+          in: 'query',
+          description: 'Filter by redemption status (CLAIMED or REDEEMED)',
+          schema: { type: 'string', enum: ['CLAIMED', 'REDEEMED', 'CANCELLED'] },
+        },
+        {
+          name: 'itemId',
+          in: 'query',
+          description: 'Optional Marketplace Reward Item ID filter',
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Business reward orders retrieved successfully',
+        },
+        '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden' },
+      },
+    },
+  },
   '/api/orders/{id}': {
     get: {
-      summary: 'Get single order details by ID (Access: USER, ADMIN)',
+      summary: 'Get single order details & redemption status by ID (Access: USER, BUSINESS, EMPLOYEE, HOST, ADMIN)',
       tags: ['Order'],
       security: [{ bearerAuth: [] }],
       parameters: [
