@@ -5,6 +5,7 @@ import { authDocs } from './auth.docs.js';
 import { categoryDocs } from './category.docs.js';
 import { eventDocs } from './event.docs.js';
 import { employeeDocs } from './employee.docs.js';
+import { employeeAuthDocs } from './employeeAuth.docs.js';
 import { paymentDocs } from './payment.docs.js';
 import { rewardCategoryDocs } from './rewardCategory.docs.js';
 import { rewardSubCategoryDocs } from './rewardSubCategory.docs.js';
@@ -52,6 +53,7 @@ const options: swaggerJsdoc.Options = {
       ...categoryDocs,
       ...eventDocs,
       ...employeeDocs,
+      ...employeeAuthDocs,
       ...paymentDocs,
       ...rewardCategoryDocs,
       ...rewardSubCategoryDocs,
@@ -69,7 +71,6 @@ const options: swaggerJsdoc.Options = {
   },
   apis: [],
 };
-
 
 export const swaggerSpec = swaggerJsdoc(options);
 

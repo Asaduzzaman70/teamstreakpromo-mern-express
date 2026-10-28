@@ -65,8 +65,8 @@ All routes require authentication via `protect`.
 | :--- | :--- | :--- | :--- |
 | `POST` | `/` | `USER` | Redeem points for a Marketplace or Event item. Deducts points and creates QR code. |
 | `GET` | `/my-orders` | `USER` | Get the logged-in user's order redemption history with pagination and status filter. |
-| `GET` | `/:id` | `USER`, `ADMIN`, `BUSINESS`, `HOST` | Get detailed order profile with populated user, item, and QR code. |
-| `PATCH` | `/:id/redeem` | `USER`, `BUSINESS`, `HOST`, `ADMIN` | Merchant/Host verifies and marks the order as fulfilled (`REDEEMED`). |
+| `GET` | `/:id` | `USER`, `ADMIN`, `BUSINESS`, `HOST`, `EMPLOYEE` | Get detailed order profile with populated user, item, and QR code. |
+| `PATCH` | `/:id/redeem` | `USER`, `BUSINESS`, `HOST`, `EMPLOYEE`, `ADMIN` | Merchant/Host or their Employee verifies and marks the order as fulfilled (`REDEEMED`). |
 
 ---
 

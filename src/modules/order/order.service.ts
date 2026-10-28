@@ -6,6 +6,7 @@ import { User } from '../auth/auth.model.js';
 import '../businessProfile/businessProfile.model.js';
 import { Marketplace } from '../marketplace/marketplace.model.js';
 import { Event } from '../event/event.model.js';
+import { Employee } from '../employee/employee.model.js';
 import { Order } from './order.model.js';
 import type { IOrder } from './order.interface.js';
 
@@ -428,8 +429,23 @@ const getMyOrders = async (userId: string, query: any) => {
 
 const getOrderById = async (userId: string, orderId: string, role?: string): Promise<IOrder> => {
   const filter: any = { _id: orderId };
-  if (role !== 'ADMIN') {
+  if (role === 'USER') {
     filter.user = userId;
+  } else if (role === 'BUSINESS') {
+    filter.businessOwnerId = userId;
+  } else if (role === 'HOST') {
+    filter.hostId = userId;
+  } else if (role === 'EMPLOYEE') {
+    const employee = await Employee.findById(userId)
+      .select('employerId employerType isActive')
+      .lean();
+    if (!employee || !employee.isActive) {
+      throw new AppError('Employee account is inactive or not found', 403);
+    }
+    filter.$or = [
+      { businessOwnerId: employee.employerId },
+      { hostId: employee.employerId },
+    ];
   }
 
   const order = await Order.findOne(filter)
@@ -548,8 +564,23 @@ const redeemOrder = async (
   const isHost = order.hostId?.toString() === actorId;
   const isUser = order.user?.toString() === actorId;
   const isAdmin = actorRole === 'ADMIN';
+  let isAuthorizedEmployee = false;
 
-  if (!isOwner && !isHost && !isUser && !isAdmin) {
+  if (actorRole === 'EMPLOYEE') {
+    const employee = await Employee.findById(actorId)
+      .select('employerId employerType isActive')
+      .lean();
+    if (
+      employee &&
+      employee.isActive &&
+      (order.businessOwnerId?.toString() === employee.employerId.toString() ||
+        order.hostId?.toString() === employee.employerId.toString())
+    ) {
+      isAuthorizedEmployee = true;
+    }
+  }
+
+  if (!isOwner && !isHost && !isUser && !isAdmin && !isAuthorizedEmployee) {
     throw new AppError('Not authorized to redeem this order', 403);
   }
 

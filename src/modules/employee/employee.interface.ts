@@ -10,21 +10,26 @@ export interface IEmployee extends Document {
   employerId: Types.ObjectId;
   employerType: EmployerType;
   isActive: boolean;
+  refreshToken?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 export interface ICreateEmployeeInput {
-  name: string;
+  name?: string;
+  userName?: string;
   email: string;
   password: string;
+  confirmPassword?: string;
 }
 
 export interface IUpdateEmployeeInput {
   name?: string;
+  userName?: string;
   email?: string;
   password?: string;
+  confirmPassword?: string;
   isActive?: boolean;
 }
 

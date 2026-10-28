@@ -14,19 +14,30 @@ export const createEmployeeService = async (
   employerType: EmployerType,
   payload: ICreateEmployeeInput
 ) => {
-  const existingEmployee = await Employee.findOne({ email: payload.email.toLowerCase() });
+  const employeeName = (payload.name || payload.userName || '').trim();
+  if (!employeeName) {
+    throw new AppError('Employee name is required', 400);
+  }
+
+  if (payload.confirmPassword && payload.password !== payload.confirmPassword) {
+    throw new AppError('Password and Confirm Password do not match', 400);
+  }
+
+  const normalizedEmail = payload.email.toLowerCase().trim();
+
+  const existingEmployee = await Employee.findOne({ email: normalizedEmail });
   if (existingEmployee) {
     throw new AppError('An employee with this email already exists', 400);
   }
 
-  const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
+  const existingUser = await User.findOne({ email: normalizedEmail });
   if (existingUser) {
     throw new AppError('An account with this email already exists', 400);
   }
 
   const employee = await Employee.create({
-    name: payload.name,
-    email: payload.email,
+    name: employeeName,
+    email: normalizedEmail,
     password: payload.password,
     employerId,
     employerType,
@@ -35,6 +46,7 @@ export const createEmployeeService = async (
 
   const result = employee.toObject();
   delete result.password;
+  delete result.refreshToken;
   return result;
 };
 
@@ -62,7 +74,11 @@ export const getEmployerEmployeesService = async (
   }
 
   const [result, total] = await Promise.all([
-    Employee.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Employee.find(filter)
+      .select('-password -refreshToken')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
     Employee.countDocuments(filter),
   ]);
 
@@ -83,7 +99,9 @@ export const getEmployeeByIdService = async (
   employeeId: string,
   employerId: string
 ) => {
-  const employee = await Employee.findOne({ _id: employeeId, employerId }).select('-password');
+  const employee = await Employee.findOne({ _id: employeeId, employerId }).select(
+    '-password -refreshToken'
+  );
   if (!employee) {
     throw new AppError('Employee not found', 404);
   }
@@ -100,28 +118,33 @@ export const updateEmployeeService = async (
     throw new AppError('Employee not found', 404);
   }
 
-  if (payload.email && payload.email.toLowerCase() !== employee.email) {
+  if (payload.email && payload.email.toLowerCase().trim() !== employee.email) {
+    const normalizedEmail = payload.email.toLowerCase().trim();
     const existingEmployee = await Employee.findOne({
-      email: payload.email.toLowerCase(),
+      email: normalizedEmail,
       _id: { $ne: employeeId },
     });
     if (existingEmployee) {
       throw new AppError('An employee with this email already exists', 400);
     }
 
-    const existingUser = await User.findOne({ email: payload.email.toLowerCase() });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       throw new AppError('An account with this email already exists', 400);
     }
 
-    employee.email = payload.email.toLowerCase();
+    employee.email = normalizedEmail;
   }
 
-  if (payload.name !== undefined) {
-    employee.name = payload.name;
+  const updatedName = payload.name ?? payload.userName;
+  if (updatedName !== undefined) {
+    employee.name = updatedName.trim();
   }
 
   if (payload.password !== undefined) {
+    if (payload.confirmPassword && payload.password !== payload.confirmPassword) {
+      throw new AppError('Password and Confirm Password do not match', 400);
+    }
     employee.password = payload.password;
   }
 
@@ -133,6 +156,7 @@ export const updateEmployeeService = async (
 
   const result = employee.toObject();
   delete result.password;
+  delete result.refreshToken;
   return result;
 };
 

@@ -35,6 +35,10 @@ const EmployeeSchema = new Schema<IEmployee>(
       type: Boolean,
       default: true,
     },
+    refreshToken: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

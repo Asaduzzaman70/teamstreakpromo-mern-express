@@ -24,13 +24,13 @@ router.get(
 
 router.get(
   '/:id',
-  authorizeRoles('USER', 'ADMIN', 'BUSINESS', 'HOST'),
+  authorizeRoles('USER', 'ADMIN', 'BUSINESS', 'HOST', 'EMPLOYEE'),
   OrderController.getOrderById
 );
 
 router.patch(
   '/:id/redeem',
-  authorizeRoles('USER', 'BUSINESS', 'HOST', 'ADMIN'),
+  authorizeRoles('USER', 'BUSINESS', 'HOST', 'EMPLOYEE', 'ADMIN'),
   OrderController.redeemOrder
 );
 

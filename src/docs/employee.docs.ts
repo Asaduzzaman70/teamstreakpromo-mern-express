@@ -10,11 +10,13 @@ export const employeeDocs = {
           'application/json': {
             schema: {
               type: 'object',
-              required: ['name', 'email', 'password'],
+              required: ['email', 'password'],
               properties: {
-                name: { type: 'string', example: 'John Staff' },
+                name: { type: 'string', example: 'John Staff', description: 'Employee name (or pass userName)' },
+                userName: { type: 'string', example: 'John Staff', description: 'Alias for name (matches UI Invite New Team Member modal)' },
                 email: { type: 'string', example: 'staff@example.com' },
                 password: { type: 'string', example: 'password123' },
+                confirmPassword: { type: 'string', example: 'password123', description: 'Optional password confirmation check' },
               },
             },
           },
@@ -199,8 +201,10 @@ export const employeeDocs = {
               type: 'object',
               properties: {
                 name: { type: 'string', example: 'John Staff Updated' },
+                userName: { type: 'string', example: 'John Staff Updated' },
                 email: { type: 'string', example: 'staff.updated@example.com' },
                 password: { type: 'string', example: 'newpassword123' },
+                confirmPassword: { type: 'string', example: 'newpassword123' },
                 isActive: { type: 'boolean', example: true },
               },
             },
