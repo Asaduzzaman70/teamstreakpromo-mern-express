@@ -3,7 +3,7 @@
 This document defines the complete architectural design, directory layout, coding conventions, and operational workflows for the **TeamStreak Promo** Express backend application. All future modifications, feature additions, and refactors must adhere to these guidelines to ensure consistency, type safety, and maintainability.
 
 ---
-
+ 
 ## 1. System Overview & Technology Stack
 
 The application is architected as a **Modular (Feature-Based) Enterprise REST API** with distinct separation between controllers, services, database models, and validation layers.
