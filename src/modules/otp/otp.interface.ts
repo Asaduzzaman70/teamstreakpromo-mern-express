@@ -8,6 +8,7 @@ export interface IOtp extends Document {
   purpose: OtpPurpose;
   expiresAt: Date;
   isUsed: boolean;
+  attempts: number;
   createdAt: Date;
   updatedAt: Date;
 }

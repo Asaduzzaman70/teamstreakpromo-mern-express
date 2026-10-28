@@ -32,21 +32,38 @@ const createEventOrder = async (payload: CreateEventOrderPayload): Promise<IEven
     throw new AppError('Event not found when creating event order', 404);
   }
 
-  // Deduct individual price category stock
+  // Atomically deduct individual price category stock
   for (const t of payload.tickets) {
     if (event.priceCategories && event.priceCategories.length > 0) {
       const priceCat = t.priceCategoryId
         ? event.priceCategories.find((pc: any) => pc._id?.toString() === t.priceCategoryId)
         : event.priceCategories[0];
 
-      if (priceCat && priceCat.stock !== undefined) {
-        priceCat.stock = Math.max(0, priceCat.stock - t.quantity);
+      if (priceCat && (priceCat as any)._id) {
+        const targetCatId = (priceCat as any)._id;
+        const atomicResult = await Event.findOneAndUpdate(
+          {
+            _id: event._id,
+            priceCategories: {
+              $elemMatch: {
+                _id: targetCatId,
+                stock: { $gte: t.quantity },
+              },
+            },
+          },
+          { $inc: { 'priceCategories.$.stock': -t.quantity } }
+        );
+
+        // If concurrent checkout caused stock to be less than t.quantity, clamp stock to 0
+        if (!atomicResult) {
+          await Event.updateOne(
+            { _id: event._id, 'priceCategories._id': targetCatId },
+            { $set: { 'priceCategories.$.stock': 0 } }
+          );
+        }
       }
     }
   }
-
-
-  await event.save();
 
   const formattedTickets: IEventOrderTicket[] = payload.tickets.map((t) => {
     const item: IEventOrderTicket = {
@@ -88,11 +105,16 @@ const createEventOrder = async (payload: CreateEventOrderPayload): Promise<IEven
     })),
   };
 
-  const qrCode = await generateQRCode(
-    qrData,
-    `order-${orderId.toString()}.png`,
-    'qrcodes'
-  );
+  let qrCode = '';
+  try {
+    qrCode = await generateQRCode(
+      qrData,
+      `order-${orderId.toString()}.png`,
+      'qrcodes'
+    );
+  } catch (err: any) {
+    logger.error('[createEventOrder] Failed to generate ticket QR code:', err);
+  }
 
   const createData: any = {
     _id: orderId,
@@ -127,74 +149,84 @@ const getMyEventOrders = async (userId: string, query: any = {}) => {
     filter.status = query.status;
   }
 
-  const orders = await EventOrder.find(filter)
-    .populate('eventId', 'title description placeName images startDate endDate priceCategories')
-    .populate({
-      path: 'hostId',
-      select: 'name profileImage',
-      populate: { path: 'businessProfile', select: 'businessName' },
-    })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const [orders, total] = await Promise.all([
+    EventOrder.find(filter)
+      .populate('eventId', 'title description placeName images startDate endDate priceCategories')
+      .populate({
+        path: 'hostId',
+        select: 'name profileImage',
+        populate: { path: 'businessProfile', select: 'businessName' },
+      })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    EventOrder.countDocuments(filter),
+  ]);
 
-  const total = await EventOrder.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
 
-  // Auto-generate and upload QR codes to S3 for any retrieved orders missing qrCode or ticketId
-  await Promise.all(
-    orders.map(async (order) => {
-      let isUpdated = false;
-      const eventDoc = order.eventId as any;
-      const hostDoc = order.hostId as any;
-      const organizerName =
-        hostDoc?.businessProfile?.businessName || hostDoc?.name || 'Music of Tour';
+  // Synchronously assign ticketId if missing; backfill S3 QR codes asynchronously in background
+  const ordersNeedingBackfill: typeof orders = [];
+  for (const order of orders) {
+    const eventDoc = order.eventId as any;
+    const hostDoc = order.hostId as any;
+    const organizerName =
+      hostDoc?.businessProfile?.businessName || hostDoc?.name || 'Music of Tour';
 
-      if (!order.ticketId) {
-        order.ticketId = generateTicketId(organizerName || eventDoc?.title);
-        isUpdated = true;
-      }
+    if (!order.ticketId) {
+      order.ticketId = generateTicketId(organizerName || eventDoc?.title);
+      ordersNeedingBackfill.push(order);
+    } else if (!order.qrCode) {
+      ordersNeedingBackfill.push(order);
+    }
+  }
 
-      if (!order.qrCode) {
+  if (ordersNeedingBackfill.length > 0) {
+    void Promise.all(
+      ordersNeedingBackfill.map(async (order) => {
         try {
-          const qrData = {
-            event: eventDoc?.title || 'Event',
-            eventLocation: eventDoc?.placeName || 'Event Location',
-            dateTime: formatEventDateTime(eventDoc?.startDate || order.createdAt),
-            eventOrganizer: organizerName,
-            ticketId: order.ticketId,
-            orderId: order._id.toString(),
-            eventId: eventDoc?._id?.toString() || order.eventId.toString(),
-            userId: order.user.toString(),
-            totalTicketQuantity: order.totalTicketQuantity,
-            totalAmount: order.totalAmount,
-            tickets: order.tickets?.map((t) => ({
-              categoryName: t.categoryName,
-              unitPrice: t.unitPrice,
-              quantity: t.quantity,
-            })),
-          };
+          const eventDoc = order.eventId as any;
+          const hostDoc = order.hostId as any;
+          const organizerName =
+            hostDoc?.businessProfile?.businessName || hostDoc?.name || 'Music of Tour';
 
-          const qrCodeUrl = await generateQRCode(
-            qrData,
-            `order-${order._id.toString()}.png`,
-            'qrcodes'
+          let qrCodeUrl = order.qrCode;
+          if (!qrCodeUrl) {
+            const qrData = {
+              event: eventDoc?.title || 'Event',
+              eventLocation: eventDoc?.placeName || 'Event Location',
+              dateTime: formatEventDateTime(eventDoc?.startDate || order.createdAt),
+              eventOrganizer: organizerName,
+              ticketId: order.ticketId,
+              orderId: order._id.toString(),
+              eventId: eventDoc?._id?.toString() || order.eventId.toString(),
+              userId: order.user.toString(),
+              totalTicketQuantity: order.totalTicketQuantity,
+              totalAmount: order.totalAmount,
+              tickets: order.tickets?.map((t) => ({
+                categoryName: t.categoryName,
+                unitPrice: t.unitPrice,
+                quantity: t.quantity,
+              })),
+            };
+
+            qrCodeUrl = await generateQRCode(
+              qrData,
+              `order-${order._id.toString()}.png`,
+              'qrcodes'
+            );
+          }
+
+          await EventOrder.updateOne(
+            { _id: order._id },
+            { qrCode: qrCodeUrl, ticketId: order.ticketId }
           );
-          order.qrCode = qrCodeUrl;
-          isUpdated = true;
         } catch (err: any) {
-          logger.error(`[getMyEventOrders] Failed to generate/upload QR code for order ${order._id}:`, err);
+          logger.error(`[getMyEventOrders] Failed to backfill QR code for order ${order._id}:`, err);
         }
-      }
-
-      if (isUpdated) {
-        await EventOrder.updateOne(
-          { _id: order._id },
-          { qrCode: order.qrCode, ticketId: order.ticketId }
-        );
-      }
-    })
-  );
+      })
+    );
+  }
 
   return {
     meta: {
@@ -240,30 +272,34 @@ const getEventOrderById = async (orderId: string, userId: string): Promise<IEven
   }
 
   if (!order.qrCode) {
-    const qrData = {
-      event: eventDoc?.title || 'Event',
-      eventLocation: eventDoc?.placeName || 'Event Location',
-      dateTime: formatEventDateTime(eventDoc?.startDate || order.createdAt),
-      eventOrganizer: organizerName,
-      ticketId: order.ticketId,
-      orderId: order._id.toString(),
-      eventId: eventDoc?._id?.toString() || order.eventId.toString(),
-      userId: order.user.toString(),
-      totalTicketQuantity: order.totalTicketQuantity,
-      totalAmount: order.totalAmount,
-      tickets: order.tickets?.map((t) => ({
-        categoryName: t.categoryName,
-        unitPrice: t.unitPrice,
-        quantity: t.quantity,
-      })),
-    };
+    try {
+      const qrData = {
+        event: eventDoc?.title || 'Event',
+        eventLocation: eventDoc?.placeName || 'Event Location',
+        dateTime: formatEventDateTime(eventDoc?.startDate || order.createdAt),
+        eventOrganizer: organizerName,
+        ticketId: order.ticketId,
+        orderId: order._id.toString(),
+        eventId: eventDoc?._id?.toString() || order.eventId.toString(),
+        userId: order.user.toString(),
+        totalTicketQuantity: order.totalTicketQuantity,
+        totalAmount: order.totalAmount,
+        tickets: order.tickets?.map((t) => ({
+          categoryName: t.categoryName,
+          unitPrice: t.unitPrice,
+          quantity: t.quantity,
+        })),
+      };
 
-    order.qrCode = await generateQRCode(
-      qrData,
-      `order-${order._id.toString()}.png`,
-      'qrcodes'
-    );
-    isUpdated = true;
+      order.qrCode = await generateQRCode(
+        qrData,
+        `order-${order._id.toString()}.png`,
+        'qrcodes'
+      );
+      isUpdated = true;
+    } catch (err: any) {
+      logger.error(`[getEventOrderById] Failed to generate QR code for order ${order._id}:`, err);
+    }
   }
 
   if (isUpdated) {

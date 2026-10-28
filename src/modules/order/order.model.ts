@@ -61,6 +61,10 @@ const OrderSchema = new Schema<IOrder>(
   }
 );
 
+OrderSchema.index({ user: 1, createdAt: -1 });
+OrderSchema.index({ businessOwnerId: 1, status: 1 });
+OrderSchema.index({ hostId: 1, status: 1 });
+
 // Virtual field to get item summary
 OrderSchema.virtual('item').get(function (this: IOrder) {
   if (this.itemType === 'MARKETPLACE') {
@@ -93,4 +97,3 @@ OrderSchema.set('toJSON', { virtuals: true });
 OrderSchema.set('toObject', { virtuals: true });
 
 export const Order = model<IOrder>('Order', OrderSchema);
-

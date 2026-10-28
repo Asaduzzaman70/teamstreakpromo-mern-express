@@ -27,6 +27,7 @@ import {
   deleteAccountSchema,
 } from './auth.validation.js';
 import { protect, authorizeRoles } from '../../middlewares/authMiddleware.js';
+import { authRateLimiter } from '../../middlewares/security.middleware.js';
 import { validateRequest } from '../../middlewares/validation.middleware.js';
 import { uploadFields } from '../../middlewares/multer.middleware.js';
 
@@ -46,19 +47,20 @@ const profileUploadFields = uploadFields([
 
 router.post(
   '/register',
+  authRateLimiter,
   registrationImageFields,
   validateRequest(registerSchema),
   registerUser
 );
-router.post('/verify-register-otp', validateRequest(verifyOtpSchema), verifyRegisterOtp);
-router.post('/verify-account', validateRequest(verifyOtpSchema), verifyRegisterOtp);
-router.post('/resend-activation-otp', validateRequest(forgotPasswordSchema), resendActivationOtp);
-router.post('/resend-forgot-password-otp', validateRequest(forgotPasswordSchema), resendForgotPasswordOtp);
-router.post('/login', validateRequest(loginSchema), loginUser);
-router.post('/forgot-password', validateRequest(forgotPasswordSchema), forgotPassword);
-router.post('/verify-forgot-password-otp', validateRequest(verifyOtpSchema), verifyOtp);
-router.post('/verify-otp', validateRequest(verifyOtpSchema), verifyOtp);
-router.post('/reset-password', validateRequest(resetPasswordSchema), resetPassword);
+router.post('/verify-register-otp', authRateLimiter, validateRequest(verifyOtpSchema), verifyRegisterOtp);
+router.post('/verify-account', authRateLimiter, validateRequest(verifyOtpSchema), verifyRegisterOtp);
+router.post('/resend-activation-otp', authRateLimiter, validateRequest(forgotPasswordSchema), resendActivationOtp);
+router.post('/resend-forgot-password-otp', authRateLimiter, validateRequest(forgotPasswordSchema), resendForgotPasswordOtp);
+router.post('/login', authRateLimiter, validateRequest(loginSchema), loginUser);
+router.post('/forgot-password', authRateLimiter, validateRequest(forgotPasswordSchema), forgotPassword);
+router.post('/verify-forgot-password-otp', authRateLimiter, validateRequest(verifyOtpSchema), verifyOtp);
+router.post('/verify-otp', authRateLimiter, validateRequest(verifyOtpSchema), verifyOtp);
+router.post('/reset-password', authRateLimiter, validateRequest(resetPasswordSchema), resetPassword);
 router.post('/change-password', protect, validateRequest(changePasswordSchema), changePassword);
 router.post('/refresh-token', validateRequest(refreshTokenSchema), refreshToken);
 router.post('/logout', protect, logoutUser);

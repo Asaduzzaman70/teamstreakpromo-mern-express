@@ -90,5 +90,6 @@ All routes require authentication via `protect`.
      ```
 2. **Radius Proximity Search**:
    - When `latitude`, `longitude`, and `radiusInKm` (default 50) are provided in query params, results are filtered within distance.
-3. **Ticket Stock Atomicity**:
+3. **Ticket Stock Atomicity & Compound Indexes**:
+   - Indexed on `{ hostId: 1, createdAt: -1 }`, `{ endDate: 1, isActive: 1, categoryId: 1 }`, `{ endDate: 1, payoutStatus: 1 }`, and `{ latitude: 1, longitude: 1 }`.
    - When orders are placed via `eventOrder` or Stripe webhooks, ticket stock is decremented using MongoDB `$inc: { "priceCategories.$.stock": -qty }` with condition `{ stock: { $gte: qty } }`.

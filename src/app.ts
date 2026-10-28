@@ -3,6 +3,7 @@ import cors from 'cors';
 import config from './config/config.js';
 import { connectDB } from './config/db.js';
 import { errorHandler } from './middlewares/errorHandler.js';
+import { securityHeaders, globalRateLimiter } from './middlewares/security.middleware.js';
 import authRoutes from './modules/auth/auth.route.js';
 import categoryRoutes from './modules/category/category.route.js';
 import eventRoutes from './modules/event/event.route.js';
@@ -24,6 +25,13 @@ import { setupSwagger } from './docs/swagger.js';
 import requestLogger from './middlewares/requestLogger.js';
 
 const app = express();
+
+// Trust first proxy (Nginx, Render, AWS ALB, Vercel) for accurate client IP detection
+app.set('trust proxy', 1);
+
+// Apply standard security headers & global API rate limiting
+app.use(securityHeaders);
+app.use(globalRateLimiter);
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -117,8 +125,6 @@ app.use('/api/partner-reviews', partnerReviewRoutes);
 app.use('/api/business-reviews', partnerReviewRoutes);
 app.use('/api/host-analytics', hostAnalyticsRoutes);
 app.use('/api/business-partner-analytics', businessPartnerAnalyticsRoutes);
-
-
 
 // Global error handler (should be after routes)
 app.use(errorHandler);

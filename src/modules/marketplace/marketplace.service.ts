@@ -2,6 +2,7 @@ import { Marketplace, type IMarketplace } from './marketplace.model.js';
 import { RewardCategory } from '../rewardCategory/rewardCategory.model.js';
 import { RewardSubCategory } from '../rewardSubCategory/rewardSubCategory.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateMarketplaceInput, UpdateMarketplaceInput, MarketplaceQuery } from './marketplace.interface.js';
@@ -99,7 +100,6 @@ export const createMarketplaceService = async (
   ]);
 };
 
-
 export const getMarketplaceStatsService = async (): Promise<{
   totalProducts: number;
   activeProducts: number;
@@ -143,7 +143,7 @@ export const getAllMarketplacesService = async (
   const filter: Record<string, any> = {};
 
   if (query.search) {
-    filter.title = { $regex: query.search, $options: 'i' };
+    filter.title = { $regex: escapeRegex(query.search.trim()), $options: 'i' };
   }
 
   if (query.businessOwnerId) {
@@ -197,7 +197,6 @@ export const getAllMarketplacesService = async (
 
   const total = await Marketplace.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
-
 
   const sortBy = (query as any).sortBy || 'createdAt';
   const sortOrder = (query as any).sortOrder === 'asc' ? 1 : -1;

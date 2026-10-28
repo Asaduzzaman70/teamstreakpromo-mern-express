@@ -9,6 +9,7 @@ import type {
   ContentStatus,
 } from './content.interface.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import logger from '../../utils/logger.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 
@@ -143,7 +144,7 @@ export const getAllContentsService = async (
   }
 
   if (query.search) {
-    const searchRegex = { $regex: query.search.trim(), $options: 'i' };
+    const searchRegex = { $regex: escapeRegex(query.search.trim()), $options: 'i' };
     filter.$or = [
       { title: searchRegex },
       { slug: searchRegex },

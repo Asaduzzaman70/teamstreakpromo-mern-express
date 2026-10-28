@@ -77,10 +77,10 @@ Base Prefix: `/api/auth`
 1. **Host/Business Onboarding Validation**:
    - If `role` is `HOST` or `BUSINESS`, `businessName`, `businessDescription`, `location`, `govtIdFrontImage`, and `govtIdBackImage` are mandatory.
    - Either `einNumber` OR (`businessLicenseFrontImage` + `businessLicenseBackImage`) must be provided.
-2. **OTP Flow**:
-   - Managed via `src/modules/otp/otp.service.ts`.
-   - Expires in 10 minutes.
-   - Re-requesting automatically deletes prior unused OTPs for the same email and purpose.
+2. **OTP & Rate-Limiting Protection**:
+   - Public authentication and OTP routes are protected by `authRateLimiter` (15 requests / 15 minutes per IP) in `src/middlewares/security.middleware.ts`.
+   - OTPs are managed via `src/modules/otp/otp.service.ts` with `crypto.randomInt`, a 60-second resend cooldown, 10-minute expiry, and automatic invalidation after 5 failed attempts.
+   - `protect` middleware (`src/middlewares/authMiddleware.ts`) performs real-time account status verification (`isActive`, `isSuspend`, `isDeleted`).
 3. **Password Security**:
    - Passwords hashed with `bcryptjs` (salt rounds: 10 or 12).
    - Never returned in JSON responses (`select: false` on Schema).

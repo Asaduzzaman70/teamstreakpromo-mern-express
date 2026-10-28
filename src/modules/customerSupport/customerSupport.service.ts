@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { SupportTicket } from './customerSupport.model.js';
 import { User } from '../auth/auth.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import logger from '../../utils/logger.js';
 import {
   SupportTicketStatus,
@@ -269,7 +270,7 @@ export const getMyTicketsService = async (
 
   // Search keyword in title, description, or ticketId
   if (query.search && query.search.trim()) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { title: searchRegex },
       { description: searchRegex },
@@ -479,7 +480,7 @@ export const adminGetAllTicketsService = async (
 
   // Keyword search
   if (query.search && query.search.trim()) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { title: searchRegex },
       { description: searchRegex },

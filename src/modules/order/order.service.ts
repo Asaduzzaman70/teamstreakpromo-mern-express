@@ -59,17 +59,48 @@ const createOrder = async (
 
     const totalPointsRequired = marketplaceItem.points * quantity;
 
-    // Check if user has enough points
     if (user.totalPoints < totalPointsRequired) {
       throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
     }
 
-    // Process the order
-    user.totalPoints -= totalPointsRequired;
-    await user.save();
+    // 1. Atomically reserve marketplace stock
+    const updatedMarketplace = await Marketplace.findOneAndUpdate(
+      {
+        _id: marketplaceItem._id,
+        isActive: true,
+        $expr: {
+          $gte: [
+            { $subtract: ['$quantity', { $ifNull: ['$claimQuantity', 0] }] },
+            quantity,
+          ],
+        },
+      },
+      { $inc: { claimQuantity: quantity } },
+      { new: true }
+    );
 
-    marketplaceItem.claimQuantity = (marketplaceItem.claimQuantity || 0) + quantity;
-    await marketplaceItem.save();
+    if (!updatedMarketplace) {
+      throw new AppError('Insufficient marketplace stock available', 400);
+    }
+
+    // 2. Atomically deduct user points
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        totalPoints: { $gte: totalPointsRequired },
+      },
+      { $inc: { totalPoints: -totalPointsRequired } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      // Roll back marketplace stock reservation
+      await Marketplace.updateOne(
+        { _id: marketplaceItem._id },
+        { $inc: { claimQuantity: -quantity } }
+      );
+      throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
+    }
 
     orderData.businessOwnerId = marketplaceItem.businessOwnerId as any;
     orderData.itemId = marketplaceItem._id as any;
@@ -125,9 +156,10 @@ const createOrder = async (
       (r: any) => r._id?.toString() === rewardItemId?.toString()
     ) || event.rewards[0];
 
-    if (!reward) {
+    if (!reward || !reward._id) {
       throw new AppError('Reward item not found in event', 404);
     }
+    const targetRewardId = reward._id;
 
     if (reward.stock < quantity) {
       throw new AppError(`Only ${reward.stock} items left in stock`, 400);
@@ -135,17 +167,47 @@ const createOrder = async (
 
     const totalPointsRequired = reward.pointsRequired * quantity;
 
-    // Check if user has enough points
     if (user.totalPoints < totalPointsRequired) {
       throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
     }
 
-    // Process the order
-    user.totalPoints -= totalPointsRequired;
-    await user.save();
+    // 1. Atomically reserve event reward stock
+    const updatedEvent = await Event.findOneAndUpdate(
+      {
+        _id: event._id,
+        rewards: {
+          $elemMatch: {
+            _id: targetRewardId,
+            stock: { $gte: quantity },
+          },
+        },
+      },
+      { $inc: { 'rewards.$.stock': -quantity } },
+      { new: true }
+    );
 
-    reward.stock -= quantity;
-    await event.save();
+    if (!updatedEvent) {
+      throw new AppError('Insufficient reward stock available', 400);
+    }
+
+    // 2. Atomically deduct user points
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: user._id,
+        totalPoints: { $gte: totalPointsRequired },
+      },
+      { $inc: { totalPoints: -totalPointsRequired } },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      // Roll back event reward stock reservation
+      await Event.updateOne(
+        { _id: event._id, 'rewards._id': targetRewardId },
+        { $inc: { 'rewards.$.stock': quantity } }
+      );
+      throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
+    }
 
     orderData.hostId = event.hostId as any;
     orderData.rewardItemId = reward._id as any;
@@ -209,20 +271,23 @@ const getMyOrders = async (userId: string, query: any) => {
     filter.status = query.status;
   }
 
-  const orders = await Order.find(filter)
-    .populate('itemId', 'title description location photos points')
-    .populate('eventId', 'title description placeName images rewards')
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const [orders, total] = await Promise.all([
+    Order.find(filter)
+      .populate('itemId', 'title description location photos points')
+      .populate('eventId', 'title description placeName images rewards')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    Order.countDocuments(filter),
+  ]);
 
-  const total = await Order.countDocuments(filter);
   const totalPage = Math.ceil(total / limit);
 
-  // Auto-backfill QR codes for any older orders missing qrCode
-  await Promise.all(
-    orders.map(async (order) => {
-      if (!order.qrCode) {
+  // Trigger non-blocking background QR backfill for any legacy orders missing qrCode
+  const ordersMissingQr = orders.filter((order) => !order.qrCode);
+  if (ordersMissingQr.length > 0) {
+    void Promise.all(
+      ordersMissingQr.map(async (order) => {
         try {
           let qrData: any = null;
           if (order.itemType === 'MARKETPLACE') {
@@ -289,15 +354,14 @@ const getMyOrders = async (userId: string, query: any) => {
               `order-${order._id.toString()}.png`,
               'qrcodes'
             );
-            order.qrCode = qrCodeUrl;
             await Order.updateOne({ _id: order._id }, { qrCode: qrCodeUrl });
           }
         } catch (err: any) {
           logger.error(`[getMyOrders] Failed to backfill QR code for order ${order._id}:`, err);
         }
-      }
-    })
-  );
+      })
+    );
+  }
 
   const formattedOrders = orders.map((order) => {
     let title = '';
@@ -489,13 +553,20 @@ const redeemOrder = async (
     throw new AppError('Not authorized to redeem this order', 403);
   }
 
-  order.status = 'REDEEMED';
-  await order.save();
+  const updatedOrder = await Order.findOneAndUpdate(
+    { _id: orderId, status: 'CLAIMED' },
+    { $set: { status: 'REDEEMED' } },
+    { new: true }
+  );
+
+  if (!updatedOrder) {
+    throw new AppError('Order is already redeemed or cancelled', 400);
+  }
 
   logger.info(
     `[OrderService] Order ${orderId} marked as REDEEMED by user ${actorId} (${actorRole})`
   );
-  return order;
+  return updatedOrder;
 };
 
 export const OrderService = {

@@ -85,6 +85,7 @@ All routes require authentication (`protect`).
        EventOrderService->>DB: Save EventOrder (Status: PAID)
        EventOrderService->>DB: Credit User loyalty points
    ```
-2. **Cancellation Rules**:
+2. **Cancellation & Concurrency Rules**:
+   - `stripeSessionId` is indexed with `{ unique: true, sparse: true }`, and compound indexes on `{ user: 1, createdAt: -1 }` and `{ eventId: 1, status: 1 }` optimize order history and sales aggregations.
    - Ticket cancellations cannot be executed within 10 minutes of event start time (or after the event has started/ended).
-   - Once refunded, the order status changes to `CANCELLED`, `stripeRefundId` is stamped, and ticket inventory is returned to the event.
+   - Once refunded, the order status changes to `CANCELLED`, `stripeRefundId` is stamped, and ticket inventory is atomically returned to the event.

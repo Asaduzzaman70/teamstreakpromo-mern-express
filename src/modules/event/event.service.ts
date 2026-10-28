@@ -3,6 +3,7 @@ import { Category } from '../category/category.model.js';
 import { User } from '../auth/auth.model.js';
 import { EventOrder } from '../eventOrder/eventOrder.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type { CreateEventInput, UpdateEventInput, EventQuery, IEvent } from './event.interface.js';
@@ -583,10 +584,11 @@ export const getAllEventsService = async (
   }
 
   if (query.search) {
+    const escapedSearch = escapeRegex(query.search.toString().trim());
     filter.$or = [
-      { title: { $regex: query.search, $options: 'i' } },
-      { description: { $regex: query.search, $options: 'i' } },
-      { placeName: { $regex: query.search, $options: 'i' } },
+      { title: { $regex: escapedSearch, $options: 'i' } },
+      { description: { $regex: escapedSearch, $options: 'i' } },
+      { placeName: { $regex: escapedSearch, $options: 'i' } },
     ];
   }
 
@@ -899,7 +901,7 @@ export const getAdminEventsService = async (
 
   const searchQuery = query.search || query.title;
   if (searchQuery) {
-    const searchRegex = new RegExp(searchQuery.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(searchQuery.toString().trim()), 'i');
 
     const matchingHosts = await User.find({
       $or: [

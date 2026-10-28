@@ -52,4 +52,40 @@ const config: Config = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 };
 
+if (config.nodeEnv === 'production') {
+  const missingOrWeak: string[] = [];
+
+  if (!process.env.MONGO_URI) {
+    missingOrWeak.push('MONGO_URI');
+  }
+  if (!process.env.JWT_SECRET || config.jwtSecret === 'fallback_secret_teamstreakpromo') {
+    missingOrWeak.push('JWT_SECRET');
+  }
+  if (
+    !process.env.JWT_REFRESH_SECRET ||
+    config.jwtRefreshSecret === 'fallback_refresh_secret_teamstreakpromo'
+  ) {
+    missingOrWeak.push('JWT_REFRESH_SECRET');
+  }
+  if (
+    !config.resetTokenSecret ||
+    config.resetTokenSecret === 'fallback_reset_secret_teamstreakpromo' ||
+    config.resetTokenSecret === 'fallback_secret_teamstreakpromo'
+  ) {
+    missingOrWeak.push('RESET_TOKEN_SECRET');
+  }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    missingOrWeak.push('STRIPE_SECRET_KEY');
+  }
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    missingOrWeak.push('STRIPE_WEBHOOK_SECRET');
+  }
+
+  if (missingOrWeak.length > 0) {
+    throw new Error(
+      `[Config Error]: Missing or insecure required environment variables in production: ${missingOrWeak.join(', ')}`
+    );
+  }
+}
+
 export default config;

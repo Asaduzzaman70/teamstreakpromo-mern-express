@@ -1,6 +1,7 @@
 import { Employee } from './employee.model.js';
 import { User } from '../auth/auth.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import type {
   ICreateEmployeeInput,
   IUpdateEmployeeInput,
@@ -48,7 +49,7 @@ export const getEmployerEmployeesService = async (
   const filter: Record<string, any> = { employerId };
 
   if (query.search) {
-    const searchRegex = new RegExp(query.search, 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [{ name: searchRegex }, { email: searchRegex }];
   }
 

@@ -1,6 +1,7 @@
 import { RewardSubCategory } from '../rewardSubCategory/rewardSubCategory.model.js';
 import { RewardCategory, type IRewardCategory } from './rewardCategory.model.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import type { IMeta } from '../../utils/sendResponse.js';
 import type {
   CreateRewardCategoryInput,
@@ -34,7 +35,7 @@ export const getAllRewardCategoriesService = async (
   const filter: Record<string, any> = {};
 
   if (query.search) {
-    filter.name = { $regex: query.search, $options: 'i' };
+    filter.name = { $regex: escapeRegex(query.search.trim()), $options: 'i' };
   }
 
   if (query.isActive !== undefined) {

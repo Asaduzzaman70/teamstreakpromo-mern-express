@@ -7,6 +7,7 @@ import type {
   UserRole,
 } from './user.interface.js';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import logger from '../../utils/logger.js';
 
 /**
@@ -69,7 +70,7 @@ export const getAllUsersService = async (
 
   // Search by name, email, or phoneNumber
   if (query.search && query.search.trim()) {
-    const searchRegex = new RegExp(query.search.trim(), 'i');
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
     filter.$or = [
       { name: searchRegex },
       { email: searchRegex },

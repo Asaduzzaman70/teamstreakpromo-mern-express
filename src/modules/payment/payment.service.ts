@@ -24,7 +24,6 @@ import type {
 } from './payment.interface.js';
 import type { StripeAccountStatus } from '../businessProfile/businessProfile.interface.js';
 
-
 // Initialize Stripe instance with safe fallback to prevent boot crashes when key is not yet in .env
 const stripe = new Stripe(config.stripeSecretKey || 'sk_test_placeholder_teamstreakpromo');
 
@@ -245,8 +244,8 @@ const createCheckoutSession = async (
     let categoryName = 'General';
     const targetPriceCat = item.priceCategoryId
       ? event.priceCategories?.find(
-        (pc: any) => pc._id?.toString() === item.priceCategoryId || pc.id === item.priceCategoryId
-      )
+          (pc: any) => pc._id?.toString() === item.priceCategoryId || pc.id === item.priceCategoryId
+        )
       : event.priceCategories?.[0];
 
     if (item.priceCategoryId && !targetPriceCat) {
@@ -330,8 +329,6 @@ const createCheckoutSession = async (
     );
   }
 
-
-
   const returnSuccessUrl =
     successUrl || `${config.serverUrl}/api/payments/checkout-success?session_id={CHECKOUT_SESSION_ID}`;
   const returnCancelUrl =
@@ -379,13 +376,14 @@ const handleWebhook = async (
         config.stripeWebhookSecret
       );
     } catch (err: any) {
-      console.error(`[Stripe Webhook Step 1 ERROR] Signature verification failed: ${err.message}`);
+      logger.error(`[Stripe Webhook ERROR] Signature verification failed: ${err.message}`);
       throw new AppError(`Stripe Webhook Signature Verification Failed: ${err.message}`, 400);
     }
-  } else if (fallbackBody && fallbackBody.type) {
+  } else if (config.nodeEnv !== 'production' && !config.stripeWebhookSecret && fallbackBody && fallbackBody.type) {
+    // Only allow unverified fallback payload in local non-production development when webhook secret is not configured
     event = fallbackBody as Stripe.Event;
   } else {
-    console.error('[Stripe Webhook Step 1 ERROR] Invalid webhook payload or missing signature');
+    logger.error('[Stripe Webhook ERROR] Invalid webhook payload or missing Stripe signature');
     throw new AppError('Invalid webhook payload or missing signature', 400);
   }
 
@@ -429,11 +427,10 @@ const handleWebhook = async (
                 ];
               }
 
-
               const totalTicketQuantity = parsedTickets.reduce((acc, t) => acc + t.quantity, 0);
               const totalAmount = (session.amount_total || 0) / 100;
 
-              // 1. Save EventOrder in eventOrder module (and decrement event ticket stock per price category)
+              // 1. Save EventOrder in eventOrder module (and atomically decrement event ticket stock per price category)
               const eventOrderPayload: any = {
                 userId,
                 hostId: eventDoc.hostId.toString(),
@@ -444,9 +441,19 @@ const handleWebhook = async (
                 stripeSessionId: session.id,
                 pointsEarned: totalTicketQuantity,
               };
-              await EventOrderService.createEventOrder(eventOrderPayload);
 
-              // 2. Save Reward Orders in order module and calculate points spent
+              try {
+                await EventOrderService.createEventOrder(eventOrderPayload);
+              } catch (orderErr: any) {
+                // If duplicate key error (code 11000) on stripeSessionId from concurrent webhook delivery, exit idempotently
+                if (orderErr?.code === 11000) {
+                  logger.info(`[handleWebhook] Duplicate webhook delivery ignored for session ${session.id}`);
+                  break;
+                }
+                throw orderErr;
+              }
+
+              // 2. Save Reward Orders in order module and calculate points spent atomically
               let parsedRewards: Array<{ rewardId: string; quantity: number }> = [];
               if (rawRewardsJson) {
                 try {
@@ -461,11 +468,32 @@ const handleWebhook = async (
                 const reward = eventDoc.rewards?.find(
                   (r: any) => r._id?.toString() === rewardMeta.rewardId || r.id === rewardMeta.rewardId
                 );
-                if (reward) {
+                if (reward && (reward as any)._id) {
                   const qtyToClaim = rewardMeta.quantity || 1;
+                  const targetRewardId = (reward as any)._id;
+
+                  // Atomically decrement reward stock
+                  const stockUpdate = await Event.findOneAndUpdate(
+                    {
+                      _id: eventDoc._id,
+                      rewards: {
+                        $elemMatch: {
+                          _id: targetRewardId,
+                          stock: { $gte: qtyToClaim },
+                        },
+                      },
+                    },
+                    { $inc: { 'rewards.$.stock': -qtyToClaim } }
+                  );
+
+                  if (!stockUpdate) {
+                    await Event.updateOne(
+                      { _id: eventDoc._id, 'rewards._id': targetRewardId },
+                      { $set: { 'rewards.$.stock': 0 } }
+                    );
+                  }
+
                   totalPointsSpent += (reward.pointsRequired || 0) * qtyToClaim;
-                  reward.stock = Math.max(0, reward.stock - qtyToClaim);
-                  await eventDoc.save();
 
                   const orderId = new Types.ObjectId();
                   let qrCodeUrl = '';
@@ -505,7 +533,7 @@ const handleWebhook = async (
                     itemType: 'EVENT',
                     hostId: eventDoc.hostId,
                     eventId: eventDoc._id,
-                    rewardItemId: reward._id,
+                    rewardItemId: targetRewardId,
                     itemPoints: reward.pointsRequired || 0,
                     quantity: qtyToClaim,
                     status: 'CLAIMED',
@@ -515,14 +543,22 @@ const handleWebhook = async (
                 }
               }
 
-              // 3. Update user points (gain 1 point per ticket, minus points spent on rewards)
-              const userDoc = await User.findById(userId);
-              if (userDoc) {
-                const updatedPoints = (userDoc.totalPoints || 0) + totalTicketQuantity - totalPointsSpent;
-                userDoc.totalPoints = Math.max(0, updatedPoints);
-                await userDoc.save();
+              // 3. Atomically update user points (gain 1 point per ticket, minus points spent on rewards)
+              const netPointsDelta = totalTicketQuantity - totalPointsSpent;
+              if (netPointsDelta >= 0) {
+                await User.findByIdAndUpdate(userId, {
+                  $inc: { totalPoints: netPointsDelta },
+                });
+              } else {
+                const pointsToDeduct = Math.abs(netPointsDelta);
+                const updatedBuyer = await User.findOneAndUpdate(
+                  { _id: userId, totalPoints: { $gte: pointsToDeduct } },
+                  { $inc: { totalPoints: -pointsToDeduct } }
+                );
+                if (!updatedBuyer) {
+                  await User.findByIdAndUpdate(userId, { $set: { totalPoints: 0 } });
+                }
               }
-
             }
           }
         }
@@ -530,15 +566,12 @@ const handleWebhook = async (
       break;
     }
 
-
-
     case 'account.updated':
     case 'capability.updated':
     case 'person.updated': {
       const eventObj = event.data.object as any;
 
       // Extract ONLY valid Stripe Account ID starting with 'acct_'
-      // Do NOT use capability or object IDs (such as 'card_payments' or 'transfers')
       let stripeAccountId: string | undefined;
       if (event.type === 'account.updated' && eventObj?.object === 'account' && typeof eventObj?.id === 'string' && eventObj.id.startsWith('acct_')) {
         stripeAccountId = eventObj.id;
@@ -549,7 +582,7 @@ const handleWebhook = async (
       }
 
       if (!stripeAccountId) {
-        console.warn(`[Stripe Webhook Step 3 WARN] Could not determine valid Stripe Account ID (acct_...) from event '${event.type}'`);
+        logger.warn(`[Stripe Webhook WARN] Could not determine valid Stripe Account ID (acct_...) from event '${event.type}'`);
         break;
       }
 
@@ -562,7 +595,7 @@ const handleWebhook = async (
       }
 
       if (!businessProfile) {
-        console.warn(`[Stripe Webhook Step 3 WARN] No matching BusinessProfile found in database for stripeAccountId '${stripeAccountId}'!`);
+        logger.warn(`[Stripe Webhook WARN] No matching BusinessProfile found in database for stripeAccountId '${stripeAccountId}'!`);
         break;
       }
 
@@ -572,18 +605,18 @@ const handleWebhook = async (
         try {
           account = await stripe.accounts.retrieve(stripeAccountId);
         } catch (apiErr: any) {
-          console.warn(`[Stripe Webhook Step 4 WARN] Could not fetch fresh account from Stripe API: ${apiErr.message}.`);
+          logger.warn(`[Stripe Webhook WARN] Could not fetch fresh account from Stripe API: ${apiErr.message}.`);
           if (event.type === 'account.updated' && eventObj?.object === 'account') {
             account = eventObj as Stripe.Account;
           } else {
-            console.error(`[Stripe Webhook Step 4 ERROR] Cannot process event '${event.type}' without full account object.`);
+            logger.error(`[Stripe Webhook ERROR] Cannot process event '${event.type}' without full account object.`);
             break;
           }
         }
       } else if (event.type === 'account.updated' && eventObj?.object === 'account') {
         account = eventObj as Stripe.Account;
       } else {
-        console.error(`[Stripe Webhook Step 4 ERROR] Cannot process event '${event.type}' without full account object.`);
+        logger.error(`[Stripe Webhook ERROR] Cannot process event '${event.type}' without full account object.`);
         break;
       }
 
@@ -629,7 +662,7 @@ const handleWebhook = async (
           businessProfile.stripeChargesEnabled = false;
           await businessProfile.save();
         } else {
-          console.warn(`[Stripe Webhook Step 3 WARN] No BusinessProfile found for deauthorization with stripeAccountId '${deauthAccountId}'`);
+          logger.warn(`[Stripe Webhook WARN] No BusinessProfile found for deauthorization with stripeAccountId '${deauthAccountId}'`);
         }
       }
       break;
@@ -692,9 +725,20 @@ const processEventPayout = async (
     };
   }
 
-  // Update status to PROCESSING
+  // Atomically acquire lock by transitioning status from PENDING or FAILED to PROCESSING
+  const lockResult = await Event.updateOne(
+    {
+      _id: eventDoc._id,
+      payoutStatus: { $in: ['PENDING', 'FAILED'] },
+    },
+    { $set: { payoutStatus: 'PROCESSING' } }
+  );
+
+  if (lockResult.modifiedCount === 0) {
+    throw new AppError('Event payout is already being processed or has been completed.', 409);
+  }
+
   eventDoc.payoutStatus = 'PROCESSING';
-  await eventDoc.save();
 
   // Aggregate all paid or completed orders for this event
   const orders = await EventOrder.find({
@@ -751,22 +795,27 @@ const processEventPayout = async (
   checkStripeConfig();
 
   try {
-    // Transfer funds from main platform balance to Host's Stripe Connect Express account
-    const transfer = await stripe.transfers.create({
-      amount: Math.round(hostPayoutAmount * 100), // amount in cents
-      currency: 'usd',
-      destination: businessProfile.stripeAccountId,
-      description: `Payout for Event: "${eventDoc.title}" (Event ID: ${eventDoc._id})`,
-      metadata: {
-        eventId: eventDoc._id.toString(),
-        hostId: eventDoc.hostId.toString(),
-        totalOrders: orders.length.toString(),
-        totalTicketsSold: totalTicketsSold.toString(),
-        totalRevenue: totalRevenue.toFixed(2),
-        platformFeeAmount: platformFeeAmount.toFixed(2),
-        hostPayoutAmount: hostPayoutAmount.toFixed(2),
+    // Transfer funds from main platform balance to Host's Stripe Connect Express account with idempotency key
+    const transfer = await stripe.transfers.create(
+      {
+        amount: Math.round(hostPayoutAmount * 100), // amount in cents
+        currency: 'usd',
+        destination: businessProfile.stripeAccountId,
+        description: `Payout for Event: "${eventDoc.title}" (Event ID: ${eventDoc._id})`,
+        metadata: {
+          eventId: eventDoc._id.toString(),
+          hostId: eventDoc.hostId.toString(),
+          totalOrders: orders.length.toString(),
+          totalTicketsSold: totalTicketsSold.toString(),
+          totalRevenue: totalRevenue.toFixed(2),
+          platformFeeAmount: platformFeeAmount.toFixed(2),
+          hostPayoutAmount: hostPayoutAmount.toFixed(2),
+        },
       },
-    });
+      {
+        idempotencyKey: `payout_event_${eventDoc._id.toString()}`,
+      }
+    );
 
     // Update Event document
     eventDoc.payoutStatus = 'COMPLETED';
@@ -968,39 +1017,42 @@ const cancelEventOrder = async (
       stripeRefundId = refund.id;
     } catch (err: any) {
       if (err instanceof AppError) throw err;
-      console.error(`[Stripe Refund Error]: ${err.message}`);
+      logger.error(`[Stripe Refund Error]: ${err.message}`);
       throw new AppError(`Stripe Refund Failed: ${err.message}`, 500);
     }
   }
 
-  // Restore ticket stock in event price categories
+  // Atomically restore ticket stock in event price categories
   if (order.tickets && order.tickets.length > 0 && eventDoc.priceCategories) {
     for (const ticketItem of order.tickets) {
       const targetCategory = eventDoc.priceCategories.find(
         (pc: any) =>
           (ticketItem.priceCategoryId && pc._id?.toString() === ticketItem.priceCategoryId.toString()) ||
           (pc.name && pc.name === ticketItem.categoryName)
-      );
+      ) || eventDoc.priceCategories[0];
 
-      if (targetCategory) {
-        targetCategory.stock += ticketItem.quantity || 1;
-      } else if (eventDoc.priceCategories[0]) {
-        eventDoc.priceCategories[0].stock += ticketItem.quantity || 1;
+      if (targetCategory && (targetCategory as any)._id) {
+        await Event.updateOne(
+          { _id: eventDoc._id, 'priceCategories._id': (targetCategory as any)._id },
+          { $inc: { 'priceCategories.$.stock': ticketItem.quantity || 1 } }
+        );
       }
     }
-    await eventDoc.save();
   }
 
-  // Revert user points earned from this ticket purchase
-  const pointsToDeduct = order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
-    ? order.pointsEarned
-    : order.totalTicketQuantity || 0;
+  // Atomically revert user points earned from this ticket purchase
+  const pointsToDeduct =
+    order.pointsEarned !== undefined && order.pointsEarned !== null && order.pointsEarned > 0
+      ? order.pointsEarned
+      : order.totalTicketQuantity || 0;
 
   if (pointsToDeduct > 0) {
-    const buyer = await User.findById(order.user);
-    if (buyer) {
-      buyer.totalPoints = Math.max(0, (buyer.totalPoints || 0) - pointsToDeduct);
-      await buyer.save();
+    const deductedUser = await User.findOneAndUpdate(
+      { _id: order.user, totalPoints: { $gte: pointsToDeduct } },
+      { $inc: { totalPoints: -pointsToDeduct } }
+    );
+    if (!deductedUser) {
+      await User.findByIdAndUpdate(order.user, { $set: { totalPoints: 0 } });
     }
   }
 
@@ -1032,4 +1084,3 @@ export const PaymentService = {
   getEventPayoutStatus,
   cancelEventOrder,
 };
-

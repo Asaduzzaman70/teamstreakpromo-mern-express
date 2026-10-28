@@ -82,7 +82,6 @@ const EventSchema = new Schema<IEvent>(
       required: [true, 'End date is required'],
     },
     priceCategories: {
-
       type: [PriceCategorySchema],
       default: [],
       validate: [
@@ -90,7 +89,6 @@ const EventSchema = new Schema<IEvent>(
         'Cannot have more than 10 price categories',
       ],
     },
-
     images: {
       type: [String],
       default: [],
@@ -140,6 +138,8 @@ const EventSchema = new Schema<IEvent>(
 );
 
 EventSchema.index({ hostId: 1, createdAt: -1 });
+EventSchema.index({ endDate: 1, isActive: 1, categoryId: 1 });
+EventSchema.index({ endDate: 1, payoutStatus: 1 });
+EventSchema.index({ latitude: 1, longitude: 1 });
 
 export const Event = model<IEvent>('Event', EventSchema);
-

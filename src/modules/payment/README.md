@@ -84,6 +84,6 @@ sequenceDiagram
 
 ## 5. Security & Best Practices
 
-1. **Raw Body Parsing for Webhooks**: The webhook endpoint must receive raw unparsed buffer data to verify Stripe signature headers (`stripe-signature`).
-2. **Refund Cutoff**: Ticket refunds are prohibited if the event start time is less than 10 minutes away.
-3. **Double Payout Safeguard**: Payout status is locked (`'PROCESSING'`) before dispatching Stripe transfer calls to prevent duplicate payouts during concurrent sweeps.
+1. **Raw Body Parsing & Strict Webhook Verification**: The webhook endpoint receives raw unparsed buffer data to verify Stripe signature headers (`stripe-signature`). Unverified fallback payloads are strictly blocked in production (`NODE_ENV === 'production'`).
+2. **Refund Cutoff & Atomic Reversal**: Ticket refunds are prohibited if the event start time is less than 10 minutes away. Ticket stock and earned points are reverted atomically.
+3. **Double Payout Safeguard & Idempotency**: Payout status is atomically locked (`findOneAndUpdate` to `'PROCESSING'`) before dispatching Stripe transfer calls with an `idempotencyKey` (`payout_event_<eventId>`) to prevent duplicate payouts during concurrent sweeps.

@@ -89,5 +89,7 @@ All routes require authentication via `protect`.
        OrderService->>S3: Generate & upload redemption QR code
        OrderService->>User: Return Order (status: CLAIMED)
    ```
-2. **Cancellation Rules**:
+2. **Concurrency, Indexing & Cancellation Rules**:
+   - Stock and user point deductions use atomic `findOneAndUpdate` operations with `$inc` and `$gte` conditions (rolling back stock reservation if point deduction fails).
+   - Indexed on `{ user: 1, createdAt: -1 }`, `{ businessOwnerId: 1, status: 1 }`, and `{ hostId: 1, status: 1 }`.
    - If an unfulfilled order is cancelled, the spent reward points are refunded back to `user.totalPoints`, and `claimQuantity` on the item is decremented.
