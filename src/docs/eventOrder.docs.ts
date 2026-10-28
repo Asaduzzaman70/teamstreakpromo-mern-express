@@ -1,4 +1,130 @@
 export const eventOrderDocs = {
+  '/api/event-orders/scan': {
+    post: {
+      tags: ['Event Orders'],
+      summary: 'Scan & Verify Event Ticket QR Code (Venue Entry Check-In)',
+      description:
+        'Scans an event ticket QR code at the venue entrance using ticketId (e.g. MOT3203920212), orderId, or raw qrData JSON. Validates ownership, ensures the ticket is not cancelled or expired, and atomically marks the ticket as scanned (isScanned: true) so it cannot be reused.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              properties: {
+                ticketId: {
+                  type: 'string',
+                  example: 'MOT3203920212',
+                  description: 'Readable Ticket ID from QR code (e.g. MOT3203920212)',
+                },
+                orderId: {
+                  type: 'string',
+                  example: '66e520000000000000000001',
+                  description: 'EventOrder MongoDB ID from QR code',
+                },
+                qrData: {
+                  oneOf: [{ type: 'string' }, { type: 'object' }],
+                  description: 'Optional raw QR code JSON string or parsed QR object from scanner',
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': {
+          description: 'This Ticket is Valid.',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: { type: 'string', example: 'This Ticket is Valid.' },
+                  data: {
+                    type: 'object',
+                    properties: {
+                      isValid: { type: 'boolean', example: true },
+                      statusText: { type: 'string', example: 'This Ticket is Valid.' },
+                      ticketId: { type: 'string', example: 'MOT3203920212' },
+                      orderId: { type: 'string', example: '66e520000000000000000001' },
+                      qrCode: {
+                        type: 'string',
+                        example:
+                          'https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/qrcodes/order-66e520000000000000000001.png',
+                      },
+                      event: {
+                        type: 'string',
+                        example: 'Music Celebration: Highland Park, Alaska',
+                      },
+                      eventLocation: { type: 'string', example: 'Alaska 99611, USA' },
+                      dateTime: { type: 'string', example: 'Nov 24,23 - 10.00 PM' },
+                      eventOrganizer: { type: 'string', example: 'Music of Tour' },
+                      isScanned: { type: 'boolean', example: true },
+                      scannedAt: { type: 'string', example: '2026-10-28T04:50:00.000Z' },
+                      totalTicketQuantity: { type: 'number', example: 2 },
+                      totalAmount: { type: 'number', example: 300 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '400': {
+          description: 'Invalid, Cancelled, Expired, or Already Scanned Ticket',
+        },
+        '403': {
+          description: 'Forbidden - Ticket belongs to another organizer',
+        },
+        '404': {
+          description: 'Ticket not found',
+        },
+      },
+    },
+  },
+  '/api/event-orders/{id}/scan': {
+    patch: {
+      tags: ['Event Orders'],
+      summary: 'Scan & Check-In Event Ticket by Order ID or Ticket ID',
+      description:
+        'Scans and verifies an event ticket by passing either the MongoDB Order ID or readable Ticket ID (e.g. MOT3203920212) in the URL path.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: 'path',
+          name: 'id',
+          required: true,
+          schema: { type: 'string' },
+          description: 'Event Order ID or Ticket ID (e.g. MOT3203920212)',
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'This Ticket is Valid.',
+        },
+        '400': {
+          description: 'Ticket already scanned, cancelled, or expired',
+        },
+        '403': {
+          description: 'Forbidden - Not authorized to scan this event ticket',
+        },
+        '404': {
+          description: 'Ticket not found',
+        },
+      },
+    },
+  },
   '/api/event-orders/my-orders': {
     get: {
       tags: ['Event Orders'],
@@ -85,6 +211,7 @@ export const eventOrderDocs = {
                         ticketId: { type: 'string', example: 'MOT3203920212' },
                         qrCode: { type: 'string', example: 'https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/qrcodes/1727330000000-order-66e520000000000000000001.png' },
                         status: { type: 'string', example: 'PAID' },
+                        isScanned: { type: 'boolean', example: false },
                         pointsEarned: { type: 'number', example: 2 },
                         createdAt: { type: 'string', example: '2026-09-14T12:00:00.000Z' },
                       },
@@ -105,7 +232,7 @@ export const eventOrderDocs = {
     get: {
       tags: ['Event Orders'],
       summary: 'Get Event Ticket Order Details',
-      description: 'Retrieves details for a specific event ticket order by ID.',
+      description: 'Retrieves details for a specific event ticket order by Order ID or Ticket ID (e.g. MOT3203920212).',
       security: [
         {
           bearerAuth: [],
@@ -117,7 +244,7 @@ export const eventOrderDocs = {
           name: 'id',
           required: true,
           schema: { type: 'string' },
-          description: 'Event Order ID',
+          description: 'Event Order ID or Ticket ID',
         },
       ],
       responses: {
@@ -144,6 +271,7 @@ export const eventOrderDocs = {
                       ticketId: { type: 'string', example: 'MOT3203920212' },
                       qrCode: { type: 'string', example: 'https://teamstreakpromo-bucket.s3.us-east-1.amazonaws.com/qrcodes/1727330000000-order-66e520000000000000000001.png' },
                       status: { type: 'string', example: 'PAID' },
+                      isScanned: { type: 'boolean', example: false },
                       pointsEarned: { type: 'number', example: 2 },
                     },
                   },

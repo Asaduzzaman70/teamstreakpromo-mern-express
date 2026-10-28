@@ -22,6 +22,9 @@ export interface IEventOrder extends Document {
   ticketId?: string;
   qrCode?: string;
   status: EventOrderStatus;
+  isScanned?: boolean;
+  scannedAt?: Date | undefined;
+  scannedBy?: Types.ObjectId | undefined;
   payoutStatus?: EventOrderPayoutStatus;
   hostPayoutAmount?: number;
   platformFeeAmount?: number;
@@ -31,4 +34,36 @@ export interface IEventOrder extends Document {
   pointsEarned: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ScanEventTicketInput {
+  ticketId?: string | undefined;
+  orderId?: string | undefined;
+  code?: string | undefined;
+  qrData?: string | Record<string, any> | undefined;
+}
+
+export interface IScanEventTicketResponse {
+  isValid: boolean;
+  statusText: string;
+  ticketId: string;
+  orderId: string;
+  qrCode: string;
+  event: string;
+  eventLocation: string;
+  dateTime: string;
+  eventOrganizer: string;
+  isScanned: boolean;
+  scannedAt: Date;
+  totalTicketQuantity: number;
+  totalAmount: number;
+  tickets: IEventOrderTicket[];
+  attendee: {
+    _id: string;
+    name: string;
+    email: string;
+    phoneNumber?: string;
+    profileImage?: string;
+  } | null;
+  order: IEventOrder;
 }

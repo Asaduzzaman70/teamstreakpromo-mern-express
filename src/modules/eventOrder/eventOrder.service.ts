@@ -1,12 +1,19 @@
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/AppError.js';
+import { escapeRegex } from '../../utils/escapeRegex.js';
 import { generateQRCode, formatEventDateTime, generateTicketId } from '../../utils/qrCode.js';
 import logger from '../../utils/logger.js';
 import { Event } from '../event/event.model.js';
 import { User } from '../auth/auth.model.js';
+import { Employee } from '../employee/employee.model.js';
 import '../businessProfile/businessProfile.model.js';
 import { EventOrder } from './eventOrder.model.js';
-import type { IEventOrder, IEventOrderTicket } from './eventOrder.interface.js';
+import type {
+  IEventOrder,
+  IEventOrderTicket,
+  ScanEventTicketInput,
+  IScanEventTicketResponse,
+} from './eventOrder.interface.js';
 
 export interface CreateEventOrderTicketPayload {
   priceCategoryId?: string;
@@ -25,6 +32,39 @@ export interface CreateEventOrderPayload {
   stripeSessionId?: string;
   pointsEarned: number;
 }
+
+const isValidObjectId = (val: string): boolean => {
+  return Types.ObjectId.isValid(val) && new Types.ObjectId(val).toString() === val;
+};
+
+/**
+ * Helper to verify if an actor (HOST, BUSINESS, EMPLOYEE, or ADMIN) is authorized for a given hostId.
+ */
+const isActorAuthorizedForHost = async (
+  actorId: string,
+  actorRole: string | undefined,
+  eventHostId: string
+): Promise<boolean> => {
+  if (actorRole === 'ADMIN') {
+    return true;
+  }
+
+  if (actorId === eventHostId) {
+    return true;
+  }
+
+  // Check if the actor is an active subordinate employee belonging to the event host
+  if (isValidObjectId(actorId)) {
+    const employee = await Employee.findById(actorId)
+      .select('employerId isActive')
+      .lean();
+    if (employee && employee.isActive && employee.employerId.toString() === eventHostId) {
+      return true;
+    }
+  }
+
+  return false;
+};
 
 const createEventOrder = async (payload: CreateEventOrderPayload): Promise<IEventOrder> => {
   const event = await Event.findById(payload.eventId);
@@ -127,6 +167,7 @@ const createEventOrder = async (payload: CreateEventOrderPayload): Promise<IEven
     totalAmount: payload.totalAmount,
     qrCode,
     status: 'PAID',
+    isScanned: false,
     pointsEarned: payload.pointsEarned,
   };
 
@@ -239,9 +280,19 @@ const getMyEventOrders = async (userId: string, query: any = {}) => {
   };
 };
 
-const getEventOrderById = async (orderId: string, userId: string): Promise<IEventOrder> => {
-  const order = await EventOrder.findById(orderId)
+const getEventOrderById = async (
+  identifier: string,
+  userId: string,
+  userRole?: string
+): Promise<IEventOrder> => {
+  const trimmedId = identifier.trim();
+  const query = isValidObjectId(trimmedId)
+    ? { $or: [{ _id: trimmedId }, { ticketId: trimmedId }] }
+    : { ticketId: new RegExp(`^${escapeRegex(trimmedId)}$`, 'i') };
+
+  const order = await EventOrder.findOne(query)
     .populate('eventId', 'title description placeName images startDate endDate priceCategories')
+    .populate('user', 'name email phoneNumber profileImage')
     .populate({
       path: 'hostId',
       select: 'name profileImage',
@@ -252,11 +303,17 @@ const getEventOrderById = async (orderId: string, userId: string): Promise<IEven
     throw new AppError('Event order not found', 404);
   }
 
+  const buyerUserId =
+    (order.user as any)?._id?.toString() ||
+    (order.user ? (order.user as any).toString() : '');
   const hostUserId =
     (order.hostId as any)?._id?.toString() ||
     (order.hostId ? (order.hostId as any).toString() : '');
 
-  if (order.user.toString() !== userId && hostUserId !== userId) {
+  const isBuyer = buyerUserId === userId;
+  const isHostAuthorized = await isActorAuthorizedForHost(userId, userRole, hostUserId);
+
+  if (!isBuyer && !isHostAuthorized) {
     throw new AppError('Not authorized to view this event order', 403);
   }
 
@@ -281,7 +338,7 @@ const getEventOrderById = async (orderId: string, userId: string): Promise<IEven
         ticketId: order.ticketId,
         orderId: order._id.toString(),
         eventId: eventDoc?._id?.toString() || order.eventId.toString(),
-        userId: order.user.toString(),
+        userId: buyerUserId,
         totalTicketQuantity: order.totalTicketQuantity,
         totalAmount: order.totalAmount,
         tickets: order.tickets?.map((t) => ({
@@ -312,8 +369,245 @@ const getEventOrderById = async (orderId: string, userId: string): Promise<IEven
   return order;
 };
 
+/**
+ * Extracts orderId and/or ticketId from flexible scanner inputs (URL param, body fields, or raw QR JSON string/object).
+ */
+const extractTicketIdentifiers = (
+  paramIdentifier?: string,
+  payload?: ScanEventTicketInput
+): { orderId?: string; ticketId?: string } => {
+  let orderId: string | undefined;
+  let ticketId: string | undefined;
+
+  const tryExtractFromString = (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) return;
+
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && typeof parsed === 'object') {
+          if (typeof parsed.orderId === 'string' && parsed.orderId.trim()) {
+            orderId = parsed.orderId.trim();
+          }
+          if (typeof parsed.ticketId === 'string' && parsed.ticketId.trim()) {
+            ticketId = parsed.ticketId.trim();
+          }
+          return;
+        }
+      } catch {
+        // Fallback to treating as plain string identifier
+      }
+    }
+
+    if (isValidObjectId(trimmed)) {
+      orderId = trimmed;
+    } else {
+      ticketId = trimmed;
+    }
+  };
+
+  if (paramIdentifier) {
+    tryExtractFromString(paramIdentifier);
+  }
+
+  if (payload) {
+    if (typeof payload.orderId === 'string' && payload.orderId.trim()) {
+      orderId = payload.orderId.trim();
+    }
+    if (typeof payload.ticketId === 'string' && payload.ticketId.trim()) {
+      ticketId = payload.ticketId.trim();
+    }
+    if (typeof payload.code === 'string' && payload.code.trim()) {
+      tryExtractFromString(payload.code);
+    }
+    if (payload.qrData) {
+      if (typeof payload.qrData === 'string') {
+        tryExtractFromString(payload.qrData);
+      } else if (typeof payload.qrData === 'object') {
+        if (typeof payload.qrData.orderId === 'string' && payload.qrData.orderId.trim()) {
+          orderId = payload.qrData.orderId.trim();
+        }
+        if (typeof payload.qrData.ticketId === 'string' && payload.qrData.ticketId.trim()) {
+          ticketId = payload.qrData.ticketId.trim();
+        }
+      }
+    }
+  }
+
+  return {
+    ...(orderId ? { orderId } : {}),
+    ...(ticketId ? { ticketId } : {}),
+  };
+};
+
+/**
+ * Scans, verifies, and checks in an attendee's event ticket QR code at the venue entrance.
+ * Enforces single-scan entry protection so the same ticket cannot be reused.
+ */
+const scanEventTicket = async (
+  scannerId: string,
+  scannerRole: string | undefined,
+  payload?: ScanEventTicketInput,
+  paramIdentifier?: string
+): Promise<IScanEventTicketResponse> => {
+  const { orderId, ticketId } = extractTicketIdentifiers(paramIdentifier, payload);
+
+  if (!orderId && !ticketId) {
+    throw new AppError(
+      'Ticket identifier is required. Provide ticketId (e.g. MOT3203920212), orderId, or scanned qrData.',
+      400
+    );
+  }
+
+  const orConditions: Record<string, any>[] = [];
+  if (orderId && isValidObjectId(orderId)) {
+    orConditions.push({ _id: new Types.ObjectId(orderId) });
+  }
+  if (ticketId) {
+    orConditions.push({ ticketId: new RegExp(`^${escapeRegex(ticketId)}$`, 'i') });
+    if (isValidObjectId(ticketId)) {
+      orConditions.push({ _id: new Types.ObjectId(ticketId) });
+    }
+  }
+
+  if (orConditions.length === 0) {
+    throw new AppError('Invalid ticket ID or order ID format', 400);
+  }
+
+  const order = await EventOrder.findOne(
+    orConditions.length === 1 ? orConditions[0]! : { $or: orConditions }
+  )
+    .populate('eventId', 'title description placeName images startDate endDate priceCategories')
+    .populate('user', 'name email phoneNumber profileImage')
+    .populate({
+      path: 'hostId',
+      select: 'name profileImage',
+      populate: { path: 'businessProfile', select: 'businessName' },
+    });
+
+  if (!order) {
+    throw new AppError('Invalid Ticket: No matching ticket found.', 404);
+  }
+
+  const hostUserId =
+    (order.hostId as any)?._id?.toString() ||
+    (order.hostId ? (order.hostId as any).toString() : '');
+
+  // Verify the scanner is the event host, an active employee of the event host, or an admin
+  const isAuthorized = await isActorAuthorizedForHost(scannerId, scannerRole, hostUserId);
+  if (!isAuthorized) {
+    throw new AppError(
+      'Forbidden: This ticket belongs to another organizer\'s event. You are not authorized to scan it.',
+      403
+    );
+  }
+
+  if (order.status === 'CANCELLED') {
+    throw new AppError(
+      'Invalid Ticket: This ticket order was cancelled and refunded.',
+      400
+    );
+  }
+
+  const eventDoc = order.eventId as any;
+  if (eventDoc?.endDate && new Date(eventDoc.endDate) < new Date()) {
+    throw new AppError(
+      'Expired Ticket: This event has already ended.',
+      400
+    );
+  }
+
+  if (order.isScanned) {
+    const scannedTimeStr = order.scannedAt
+      ? new Date(order.scannedAt).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        })
+      : 'earlier';
+    throw new AppError(
+      `Already Scanned: This ticket (${order.ticketId || order._id}) was already used for entry at ${scannedTimeStr}.`,
+      400
+    );
+  }
+
+  const scannedAt = new Date();
+  const updatedOrder = await EventOrder.findOneAndUpdate(
+    {
+      _id: order._id,
+      isScanned: { $ne: true },
+      status: { $in: ['PAID', 'COMPLETED'] },
+    },
+    {
+      $set: {
+        isScanned: true,
+        scannedAt,
+        ...(isValidObjectId(scannerId) ? { scannedBy: new Types.ObjectId(scannerId) } : {}),
+      },
+    },
+    { new: true }
+  )
+    .populate('eventId', 'title description placeName images startDate endDate priceCategories')
+    .populate('user', 'name email phoneNumber profileImage')
+    .populate({
+      path: 'hostId',
+      select: 'name profileImage',
+      populate: { path: 'businessProfile', select: 'businessName' },
+    });
+
+  if (!updatedOrder) {
+    throw new AppError(
+      'Already Scanned: This ticket has already been used for entry.',
+      400
+    );
+  }
+
+  const hostDoc = updatedOrder.hostId as any;
+  const buyerDoc = updatedOrder.user as any;
+  const updatedEventDoc = updatedOrder.eventId as any;
+  const organizerName =
+    hostDoc?.businessProfile?.businessName || hostDoc?.name || 'Music of Tour';
+
+  logger.info(
+    `[EventOrderService] Ticket ${updatedOrder.ticketId || updatedOrder._id} scanned for entry by ${scannerId} (${scannerRole})`
+  );
+
+  return {
+    isValid: true,
+    statusText: 'This Ticket is Valid.',
+    ticketId: updatedOrder.ticketId || '',
+    orderId: updatedOrder._id.toString(),
+    qrCode: updatedOrder.qrCode || '',
+    event: updatedEventDoc?.title || 'Event',
+    eventLocation: updatedEventDoc?.placeName || '',
+    dateTime: formatEventDateTime(updatedEventDoc?.startDate || updatedOrder.createdAt),
+    eventOrganizer: organizerName,
+    isScanned: true,
+    scannedAt: updatedOrder.scannedAt || scannedAt,
+    totalTicketQuantity: updatedOrder.totalTicketQuantity,
+    totalAmount: updatedOrder.totalAmount,
+    tickets: updatedOrder.tickets || [],
+    attendee:
+      buyerDoc && typeof buyerDoc === 'object' && buyerDoc._id
+        ? {
+            _id: buyerDoc._id.toString(),
+            name: buyerDoc.name || '',
+            email: buyerDoc.email || '',
+            ...(buyerDoc.phoneNumber ? { phoneNumber: buyerDoc.phoneNumber } : {}),
+            ...(buyerDoc.profileImage ? { profileImage: buyerDoc.profileImage } : {}),
+          }
+        : null,
+    order: updatedOrder,
+  };
+};
+
 export const EventOrderService = {
   createEventOrder,
   getMyEventOrders,
   getEventOrderById,
+  scanEventTicket,
 };

@@ -30,15 +30,18 @@ const getEventOrderById = catchAsync(
 
     const { id } = req.params;
     if (!id) {
-      throw new AppError('Event order ID is required', 400);
+      throw new AppError('Event order ID or ticket ID is required', 400);
     }
     const orderId = Array.isArray(id) ? id[0] : id;
     if (!orderId) {
-      throw new AppError('Event order ID is required', 400);
+      throw new AppError('Event order ID or ticket ID is required', 400);
     }
 
-    const result = await EventOrderService.getEventOrderById(orderId, req.user.id);
-
+    const result = await EventOrderService.getEventOrderById(
+      orderId,
+      req.user.id,
+      req.user.role
+    );
 
     sendResponse(res, {
       statusCode: 200,
@@ -48,8 +51,32 @@ const getEventOrderById = catchAsync(
   }
 );
 
+const scanEventTicket = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const rawParamId = req.params.id || req.params.ticketId || req.params.orderId;
+    const paramIdentifier = Array.isArray(rawParamId) ? rawParamId[0] : rawParamId;
+
+    const result = await EventOrderService.scanEventTicket(
+      req.user.id,
+      req.user.role,
+      req.body,
+      paramIdentifier
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'This Ticket is Valid.',
+      data: result,
+    });
+  }
+);
 
 export const EventOrderController = {
   getMyEventOrders,
   getEventOrderById,
+  scanEventTicket,
 };

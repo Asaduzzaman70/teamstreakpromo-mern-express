@@ -80,6 +80,17 @@ const EventOrderSchema = new Schema<IEventOrder>(
       enum: ['PAID', 'CANCELLED', 'COMPLETED'],
       default: 'PAID',
     },
+    isScanned: {
+      type: Boolean,
+      default: false,
+    },
+    scannedAt: {
+      type: Date,
+    },
+    scannedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     payoutStatus: {
       type: String,
       enum: ['PENDING', 'COMPLETED', 'SKIPPED'],

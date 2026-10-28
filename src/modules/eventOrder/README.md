@@ -1,14 +1,15 @@
 # Event Order Module (`src/modules/eventOrder`)
 
-The **Event Order Module** handles event ticket purchases, automated QR code generation, attendee digital ticket passes, stock deduction, and ticket cancellation workflows.
+The **Event Order Module** handles event ticket purchases, automated QR code generation, attendee digital ticket passes, venue QR scanning & entry check-in, stock deduction, and ticket cancellation workflows.
 
 ---
 
 ## 1. Overview & Capabilities
 
 - **Post-Payment Ticket Generation**: Triggered automatically upon Stripe webhook confirmation (`checkout.session.completed`).
-- **Dynamic QR Code Pass**: Creates an encrypted/structured QR code image embedded with event name, venue, date/time, ticket ID, order ID, and ticket breakdown. The QR code image is uploaded to AWS S3.
+- **Dynamic QR Code Pass**: Creates a structured QR code image embedded with event name, venue, date/time, ticket ID, order ID, and ticket breakdown. The QR code image is uploaded to AWS S3.
 - **Readable Ticket Codes**: Automatically formats human-readable ticket numbers (e.g. `MOT3203920212`) based on organizer or event initials.
+- **Venue QR Ticket Scanning & Check-In**: Enables event hosts (`HOST`, `BUSINESS`), their subordinate staff (`EMPLOYEE`), or `ADMIN` to scan attendee QR codes (`POST /scan` or `PATCH /:id/scan`) at the event entrance, verifying validity and atomically marking `isScanned = true` to prevent ticket reuse.
 - **Stock Decrement**: Atomically reduces available ticket inventory in the corresponding `priceCategories` of the `Event` document.
 - **Reward Points Credit**: Credits the buyer with promotional loyalty points upon ticket acquisition.
 - **Ticket Cancellation & Refunds**: Routes ticket cancellations through the `payment` module to process Stripe refunds and restore ticket stock, subject to event start time cutoffs.
@@ -19,12 +20,13 @@ The **Event Order Module** handles event ticket purchases, automated QR code gen
 
 ```text
 src/modules/eventOrder/
-├── eventOrder.controller.ts    # Handlers for personal order history and ticket inspection
-├── eventOrder.interface.ts     # TypeScript interfaces for EventOrder, ticket tiers, and payout status
+├── eventOrder.controller.ts    # Handlers for personal order history, ticket inspection, and QR scanning
+├── eventOrder.interface.ts     # TypeScript interfaces for EventOrder, ticket tiers, scan inputs, and payout status
 ├── eventOrder.model.ts         # Mongoose schema, compound indexes, and references
-├── eventOrder.route.ts         # Express routes guarded by protect middleware
-├── eventOrder.service.ts       # Logic for ticket creation, QR generation, and order queries
-└── README.md                    # This documentation file
+├── eventOrder.route.ts         # Express routes guarded by protect and role middlewares
+├── eventOrder.service.ts       # Logic for ticket creation, QR generation, venue scan check-in, and order queries
+├── eventOrder.validation.ts    # Zod validation schema for QR scan requests
+└── README.md                   # This documentation file
 ```
 
 ---
@@ -40,9 +42,12 @@ src/modules/eventOrder/
 | `totalTicketQuantity` | Number | Sum of all tickets in order |
 | `totalAmount` | Number | Total fiat price paid in USD |
 | `stripeSessionId` | String | Stripe Checkout Session ID |
-| `ticketId` | String | Human-readable ticket identifier (e.g. `MOT9821401`) |
+| `ticketId` | String | Human-readable ticket identifier (e.g. `MOT3203920212`) |
 | `qrCode` | String | AWS S3 URL of the generated QR code PNG |
 | `status` | Enum | `'PAID'` \| `'CANCELLED'` \| `'COMPLETED'` (default: `'PAID'`) |
+| `isScanned` | Boolean | Whether the ticket QR code has been scanned for venue entry (default: `false`) |
+| `scannedAt` | Date | Timestamp when the ticket was scanned at the venue |
+| `scannedBy` | ObjectId | Reference to the Host, Employee, or Admin who scanned the ticket |
 | `payoutStatus` | Enum | `'PENDING'` \| `'COMPLETED'` \| `'SKIPPED'` |
 | `hostPayoutAmount` | Number | Net amount owed to host after commission |
 | `platformFeeAmount`| Number | Platform service fee |
@@ -59,11 +64,13 @@ Base Prefix: `/api/event-orders`
 
 All routes require authentication (`protect`).
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/my-orders` | Fetch the current user's purchased event tickets with pagination and status filters (`PAID`, `CANCELLED`). |
-| `GET` | `/:id` | Retrieve single ticket pass details, including populated event, host, and QR code. |
-| `POST` | `/:orderId/cancel` | Cancel ticket and initiate Stripe refund (delegated to `PaymentController.cancelEventOrder`). |
+| Method | Endpoint | Allowed Roles | Description |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/scan` | `HOST`, `BUSINESS`, `EMPLOYEE`, `ADMIN` | Scan & verify ticket via `ticketId`, `orderId`, or raw `qrData` in request body. |
+| `PATCH` | `/:id/scan` | `HOST`, `BUSINESS`, `EMPLOYEE`, `ADMIN` | Scan & verify ticket by passing `orderId` or `ticketId` (`MOT3203920212`) in URL path. |
+| `GET` | `/my-orders` | All logged-in | Fetch the current user's purchased event tickets with pagination and status filters (`PAID`, `CANCELLED`). |
+| `GET` | `/:id` | Buyer, Host, Employee, `ADMIN` | Retrieve single ticket pass details by `orderId` or `ticketId`, including populated event, host, and QR code. |
+| `POST` | `/:orderId/cancel` | Ticket owner, `ADMIN` | Cancel ticket and initiate Stripe refund (delegated to `PaymentController.cancelEventOrder`). |
 
 ---
 
@@ -85,7 +92,11 @@ All routes require authentication (`protect`).
        EventOrderService->>DB: Save EventOrder (Status: PAID)
        EventOrderService->>DB: Credit User loyalty points
    ```
-2. **Cancellation & Concurrency Rules**:
+2. **Venue QR Ticket Scan Flow**:
+   - Host or Employee scans attendee's QR code using the mobile scanner (`POST /api/event-orders/scan` or `PATCH /api/event-orders/:id/scan`).
+   - Service verifies that the scanner owns the event (or is an active employee of the event host), checks that the ticket is not `CANCELLED` or expired, and atomically updates `isScanned: true` and `scannedAt`.
+   - If the same ticket is scanned a second time, the API rejects it (`400 Bad Request - Already Scanned`).
+3. **Cancellation & Concurrency Rules**:
    - `stripeSessionId` is indexed with `{ unique: true, sparse: true }`, and compound indexes on `{ user: 1, createdAt: -1 }` and `{ eventId: 1, status: 1 }` optimize order history and sales aggregations.
    - Ticket cancellations cannot be executed within 10 minutes of event start time (or after the event has started/ended).
    - Once refunded, the order status changes to `CANCELLED`, `stripeRefundId` is stamped, and ticket inventory is atomically returned to the event.
