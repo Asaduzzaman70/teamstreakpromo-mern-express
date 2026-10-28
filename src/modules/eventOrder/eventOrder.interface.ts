@@ -67,3 +67,31 @@ export interface IScanEventTicketResponse {
   } | null;
   order: IEventOrder;
 }
+
+export interface IScannedTicketDashboardItem {
+  _id: Types.ObjectId;
+  orderId: string;
+  ticketId: string;
+  eventName: string;
+  dateTime: string;
+  scannedAt: Date | undefined;
+  eventStartDate: Date | undefined;
+  eventLocation: string;
+  totalTicketQuantity: number;
+  totalAmount: number;
+  tickets: IEventOrderTicket[];
+  attendee: {
+    _id: string;
+    name: string;
+    email: string;
+    phoneNumber?: string;
+    profileImage?: string;
+  } | null;
+}
+
+export interface IScannedTicketsQuery {
+  page?: string | number;
+  limit?: string | number;
+  search?: string;
+  eventId?: string;
+}

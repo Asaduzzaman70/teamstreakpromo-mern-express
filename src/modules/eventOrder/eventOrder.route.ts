@@ -17,6 +17,13 @@ router.post(
   EventOrderController.scanEventTicket
 );
 
+// Dashboard list of scanned tickets (Host Employee sees ONLY tickets they personally scanned)
+router.get(
+  '/scanned-tickets',
+  authorizeRoles('EMPLOYEE', 'HOST', 'BUSINESS', 'ADMIN'),
+  EventOrderController.getScannedEventTickets
+);
+
 router.get('/my-orders', EventOrderController.getMyEventOrders);
 router.get('/:id', EventOrderController.getEventOrderById);
 

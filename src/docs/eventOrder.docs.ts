@@ -125,6 +125,112 @@ export const eventOrderDocs = {
       },
     },
   },
+  '/api/event-orders/scanned-tickets': {
+    get: {
+      tags: ['Event Orders'],
+      summary: 'Get Scanned Tickets Dashboard List (Host Employee sees ONLY tickets they scanned)',
+      description:
+        'Returns a paginated table of scanned event tickets (`Ticket ID`, `Event Name`, `Date & Time`). When called by a Host Employee (`role: "EMPLOYEE"`), this endpoint strictly returns **only** the tickets scanned by that specific employee (`scannedBy: req.user.id`). When called by a `HOST`, it returns all scanned tickets for the host\'s events.',
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: 'query',
+          name: 'page',
+          required: false,
+          schema: { type: 'integer', default: 1 },
+          description: 'Page number (default: 1)',
+        },
+        {
+          in: 'query',
+          name: 'limit',
+          required: false,
+          schema: { type: 'integer', default: 10 },
+          description: 'Items per page (default: 10)',
+        },
+        {
+          in: 'query',
+          name: 'search',
+          required: false,
+          schema: { type: 'string' },
+          description: 'Search by Ticket ID (e.g. MOT3203920212) or Event Name',
+        },
+        {
+          in: 'query',
+          name: 'eventId',
+          required: false,
+          schema: { type: 'string' },
+          description: 'Optional Event ID filter',
+        },
+      ],
+      responses: {
+        '200': {
+          description: 'Scanned event tickets retrieved successfully',
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  success: { type: 'boolean', example: true },
+                  statusCode: { type: 'number', example: 200 },
+                  message: {
+                    type: 'string',
+                    example: 'Scanned event tickets retrieved successfully',
+                  },
+                  meta: {
+                    type: 'object',
+                    properties: {
+                      page: { type: 'number', example: 1 },
+                      limit: { type: 'number', example: 10 },
+                      total: { type: 'number', example: 8 },
+                      totalPage: { type: 'number', example: 1 },
+                    },
+                  },
+                  data: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        _id: { type: 'string', example: '66e520000000000000000001' },
+                        orderId: { type: 'string', example: '66e520000000000000000001' },
+                        ticketId: { type: 'string', example: 'MOT3203920212' },
+                        eventName: {
+                          type: 'string',
+                          example: "Ella's Creative Showcase",
+                        },
+                        dateTime: {
+                          type: 'string',
+                          example: 'Aug 15,26 - 10.00 AM',
+                        },
+                        scannedAt: {
+                          type: 'string',
+                          format: 'date-time',
+                          example: '2026-08-15T10:00:00.000Z',
+                        },
+                        eventStartDate: {
+                          type: 'string',
+                          format: 'date-time',
+                          example: '2026-08-15T10:00:00.000Z',
+                        },
+                        eventLocation: { type: 'string', example: 'Alaska 99611, USA' },
+                        totalTicketQuantity: { type: 'number', example: 1 },
+                        totalAmount: { type: 'number', example: 150 },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        '401': { description: 'Unauthorized' },
+        '403': { description: 'Forbidden' },
+      },
+    },
+  },
   '/api/event-orders/my-orders': {
     get: {
       tags: ['Event Orders'],

@@ -68,8 +68,9 @@ All routes require authentication (`protect`).
 | :--- | :--- | :--- | :--- |
 | `POST` | `/scan` | `HOST`, `BUSINESS`, `EMPLOYEE`, `ADMIN` | Scan & verify ticket via `ticketId`, `orderId`, or raw `qrData` in request body. |
 | `PATCH` | `/:id/scan` | `HOST`, `BUSINESS`, `EMPLOYEE`, `ADMIN` | Scan & verify ticket by passing `orderId` or `ticketId` (`MOT3203920212`) in URL path. |
-| `GET` | `/my-orders` | All logged-in | Fetch the current user's purchased event tickets with pagination and status filters (`PAID`, `CANCELLED`). |
-| `GET` | `/:id` | Buyer, Host, Employee, `ADMIN` | Retrieve single ticket pass details by `orderId` or `ticketId`, including populated event, host, and QR code. |
+| `GET` | `/scanned-tickets` | `EMPLOYEE`, `HOST`, `BUSINESS`, `ADMIN` | Dashboard list of scanned tickets (`ticketId`, `eventName`, `dateTime`). Host Employees see **only** tickets they personally scanned (`scannedBy = req.user.id`). |
+| `GET` | `/my-orders` | All logged-in | Fetch the current user's purchased event tickets (or for `EMPLOYEE`, their personally scanned tickets). |
+| `GET` | `/:id` | Buyer, Host, Employee (if scanned by self), `ADMIN` | Retrieve single ticket pass details by `orderId` or `ticketId`. Host Employees can only view tickets they personally scanned. |
 | `POST` | `/:orderId/cancel` | Ticket owner, `ADMIN` | Cancel ticket and initiate Stripe refund (delegated to `PaymentController.cancelEventOrder`). |
 
 ---

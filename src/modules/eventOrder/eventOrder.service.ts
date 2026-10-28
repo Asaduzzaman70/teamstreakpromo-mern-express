@@ -13,6 +13,8 @@ import type {
   IEventOrderTicket,
   ScanEventTicketInput,
   IScanEventTicketResponse,
+  IScannedTicketDashboardItem,
+  IScannedTicketsQuery,
 } from './eventOrder.interface.js';
 
 export interface CreateEventOrderTicketPayload {
@@ -317,6 +319,16 @@ const getEventOrderById = async (
     throw new AppError('Not authorized to view this event order', 403);
   }
 
+  // Host Employee can ONLY view tickets that they personally scanned
+  if (userRole === 'EMPLOYEE') {
+    if (!order.isScanned || order.scannedBy?.toString() !== userId) {
+      throw new AppError(
+        'Forbidden: Host employees can only view tickets that they have scanned.',
+        403
+      );
+    }
+  }
+
   let isUpdated = false;
   const eventDoc = order.eventId as any;
   const hostDoc = order.hostId as any;
@@ -605,9 +617,130 @@ const scanEventTicket = async (
   };
 };
 
+/**
+ * Retrieves the dashboard list of scanned event tickets.
+ * - For Host Employees (role === 'EMPLOYEE'): strictly returns ONLY tickets scanned by this specific employee (`scannedBy: actorId`).
+ * - For Hosts (role === 'HOST'): returns scanned tickets for events owned by the host (`hostId: actorId`).
+ */
+const getScannedEventTickets = async (
+  actorId: string,
+  actorRole: string | undefined,
+  query: IScannedTicketsQuery
+): Promise<{
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPage: number;
+  };
+  data: IScannedTicketDashboardItem[];
+}> => {
+  const page = Math.max(1, parseInt(String(query.page || '1'), 10) || 1);
+  const limit = Math.max(1, parseInt(String(query.limit || '10'), 10) || 10);
+  const skip = (page - 1) * limit;
+
+  const filter: Record<string, any> = {
+    isScanned: true,
+  };
+
+  if (actorRole === 'EMPLOYEE') {
+    const employee = await Employee.findById(actorId)
+      .select('_id employerId employerType isActive')
+      .lean();
+
+    if (!employee || !employee.isActive) {
+      throw new AppError('Employee account is inactive or not found.', 403);
+    }
+
+    if (employee.employerType !== 'HOST') {
+      throw new AppError(
+        'Forbidden: Only Host employees can access event scanned tickets.',
+        403
+      );
+    }
+
+    // Strict isolation: Host Employee can ONLY see tickets that they personally scanned
+    filter.scannedBy = new Types.ObjectId(actorId);
+  } else if (actorRole === 'HOST' || actorRole === 'BUSINESS') {
+    filter.hostId = new Types.ObjectId(actorId);
+  } else if (actorRole !== 'ADMIN') {
+    throw new AppError('Not authorized to view scanned tickets', 403);
+  }
+
+  if (query.eventId && isValidObjectId(query.eventId)) {
+    filter.eventId = new Types.ObjectId(query.eventId);
+  }
+
+  if (query.search && query.search.trim()) {
+    const searchRegex = new RegExp(escapeRegex(query.search.trim()), 'i');
+    const matchingEvents = await Event.find({ title: searchRegex })
+      .select('_id')
+      .lean();
+    const matchingEventIds = matchingEvents.map((e) => e._id);
+
+    filter.$or = [
+      { ticketId: searchRegex },
+      ...(matchingEventIds.length > 0 ? [{ eventId: { $in: matchingEventIds } }] : []),
+    ];
+  }
+
+  const [orders, total] = await Promise.all([
+    EventOrder.find(filter)
+      .populate('eventId', 'title placeName startDate endDate images')
+      .populate('user', 'name email phoneNumber profileImage')
+      .sort({ scannedAt: -1, updatedAt: -1 })
+      .skip(skip)
+      .limit(limit),
+    EventOrder.countDocuments(filter),
+  ]);
+
+  const totalPage = Math.ceil(total / limit);
+
+  const formattedItems: IScannedTicketDashboardItem[] = orders.map((order) => {
+    const eventDoc = order.eventId as any;
+    const buyerDoc = order.user as any;
+    const displayDate = order.scannedAt || eventDoc?.startDate || order.createdAt;
+
+    return {
+      _id: order._id as Types.ObjectId,
+      orderId: order._id.toString(),
+      ticketId: order.ticketId || '',
+      eventName: eventDoc?.title || 'Event',
+      dateTime: formatEventDateTime(displayDate),
+      scannedAt: order.scannedAt,
+      eventStartDate: eventDoc?.startDate,
+      eventLocation: eventDoc?.placeName || '',
+      totalTicketQuantity: order.totalTicketQuantity,
+      totalAmount: order.totalAmount,
+      tickets: order.tickets || [],
+      attendee:
+        buyerDoc && typeof buyerDoc === 'object' && buyerDoc._id
+          ? {
+              _id: buyerDoc._id.toString(),
+              name: buyerDoc.name || '',
+              email: buyerDoc.email || '',
+              ...(buyerDoc.phoneNumber ? { phoneNumber: buyerDoc.phoneNumber } : {}),
+              ...(buyerDoc.profileImage ? { profileImage: buyerDoc.profileImage } : {}),
+            }
+          : null,
+    };
+  });
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage,
+    },
+    data: formattedItems,
+  };
+};
+
 export const EventOrderService = {
   createEventOrder,
   getMyEventOrders,
   getEventOrderById,
   scanEventTicket,
+  getScannedEventTickets,
 };

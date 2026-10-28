@@ -11,11 +11,49 @@ const getMyEventOrders = catchAsync(
       throw new AppError('Not authorized', 401);
     }
 
+    // If a Host Employee calls my-orders, strictly return only the tickets they personally scanned
+    if (req.user.role === 'EMPLOYEE') {
+      const scannedResult = await EventOrderService.getScannedEventTickets(
+        req.user.id,
+        req.user.role,
+        req.query
+      );
+
+      sendResponse(res, {
+        statusCode: 200,
+        message: 'Scanned event tickets retrieved successfully',
+        meta: scannedResult.meta,
+        data: scannedResult.data,
+      });
+      return;
+    }
+
     const result = await EventOrderService.getMyEventOrders(req.user.id, req.query);
 
     sendResponse(res, {
       statusCode: 200,
       message: 'My event orders retrieved successfully',
+      meta: result.meta,
+      data: result.data,
+    });
+  }
+);
+
+const getScannedEventTickets = catchAsync(
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    if (!req.user || !req.user.id) {
+      throw new AppError('Not authorized', 401);
+    }
+
+    const result = await EventOrderService.getScannedEventTickets(
+      req.user.id,
+      req.user.role,
+      req.query
+    );
+
+    sendResponse(res, {
+      statusCode: 200,
+      message: 'Scanned event tickets retrieved successfully',
       meta: result.meta,
       data: result.data,
     });
@@ -77,6 +115,7 @@ const scanEventTicket = catchAsync(
 
 export const EventOrderController = {
   getMyEventOrders,
+  getScannedEventTickets,
   getEventOrderById,
   scanEventTicket,
 };

@@ -131,5 +131,6 @@ const EventOrderSchema = new Schema<IEventOrder>(
 EventOrderSchema.index({ stripeSessionId: 1 }, { unique: true, sparse: true });
 EventOrderSchema.index({ user: 1, createdAt: -1 });
 EventOrderSchema.index({ eventId: 1, status: 1 });
+EventOrderSchema.index({ scannedBy: 1, isScanned: 1, scannedAt: -1 });
 
 export const EventOrder = model<IEventOrder>('EventOrder', EventOrderSchema);
