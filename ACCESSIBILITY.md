@@ -1,95 +1,73 @@
-# Accessibility
- 
-<!--
-Include a brief statement describing why accessibility matters to your
-project, who should be able to use and contribute to it, and what this
-document covers, such as your accessibility commitments, contributor
-expectations, and issue-reporting process.
+# Accessibility Statement for TeamStreak Promo
 
-Write for people who may read this after encountering a barrier. Use plain
-language and describe user experiences rather than relying on legal
-language, technical jargon, or standards codes.
--->
+At **TeamStreak Promo**, we believe digital experiences should be accessible, transparent, and usable for everyone—including developers, business partners, hosts, employees, and end users regardless of ability or assistive technology used.
 
-## Priorities
+As the backend API and server service powering the TeamStreak Promo ecosystem, our accessibility focus centers on **API clarity, predictable error formatting, machine-readable data structures for assistive devices (screen readers, voice assistants), accessible interactive API documentation (Swagger/OpenAPI), and inclusive communications**.
 
-<!--
-Describe the outcomes the project prioritizes and how it works toward them.
-If you name a WCAG level as an accessibility target, make clear that it is
-an aspirational goal rather than a verified conformance claim. Only claim
-conformance after an evaluation, and identify the evaluated scope, date,
-method, and evaluator. Also describe the areas you prioritize, such as
-keyboard, screen reader, content, or language support.
--->
+---
 
-## Contributor expectations
+## 1. Accessibility Priorities
 
-<!--
-Describe the accessibility guardrails that apply to contributions,
-including relevant testing, documentation, and continuous integration
-checks. Name specific tools only when the project uses them, and explain
-what evidence contributors should include with user-facing changes.
--->
+We design and maintain our backend services to support inclusive client interfaces by adhering to the following priorities:
 
-## Reporting accessibility issues
+1. **Clear and Actionable Error Responses**:
+   - Error messages are structured in plain language without cryptic error codes alone.
+   - Validation failures pinpoint the exact field, expected format, and helpful resolution steps so frontend clients and screen readers can announce them naturally.
+2. **Accessible API Documentation & Interactive Consoles**:
+   - Our Swagger / OpenAPI 3.0 documentation (`/api-docs`) strives to comply with **WCAG 2.1 Level AA** standards.
+   - High contrast themes, keyboard-navigable endpoints, readable font sizes, and well-structured semantic HTML tags (`<nav>`, `<main>`, `<button>`) for screen reader support.
+3. **Multi-Input Fallbacks for Physical Operations**:
+   - Real-world operations like event entry verification support both visual scanning (**QR code scans**) and manual textual fallback (**alphanumeric Ticket IDs** like `#MOT1174745308` or Order IDs).
+   - This ensures employees or venue staff with visual, motor, or camera hardware limitations can seamlessly complete ticket validation.
+4. **Predictable & Semantic Data Payloads**:
+   - Clean, standardized JSON payloads (`success`, `message`, `data`, `meta`) that make frontend accessible component development straightforward and predictable.
 
-<!--
-Provide a direct, accessible way to report a barrier or request help.
-Invite useful context such as the affected task, URL, observed behavior,
-browser, operating system, and assistive technology. Make screenshots or
-recordings optional and do not require disability disclosure.
--->
+---
 
-### Severity
+## 2. Contributor Expectations
 
-<!--
-If your project uses severity levels, define them and give practical
-examples based on how strongly a barrier affects a user's ability to
-complete a task. Keep labels consistent with your issue template and
-resolution targets if those processes exist. Maintainers can assign or
-confirm severity during triage; reporters do not need to.
--->
+When contributing to the TeamStreak Promo backend, contributors are expected to uphold these accessibility standards:
 
-### How we respond
+- **Semantic Error Messaging**: Always use descriptive, human-readable error messages in Zod schemas and `AppError` calls instead of raw database stack dumps.
+- **Accessible Swagger Annotations**: When documenting new endpoints in `src/docs/*.docs.ts`, provide clear summaries, parameter descriptions, and realistic example payloads so interactive documentation remains intuitive.
+- **Alternative Text for Media & Assets**: Any service or notification sending emails, HTML receipts, or push notifications must include descriptive `alt` text for images and logos.
+- **Documentation Readability**: Keep markdown documentation, guides, and module `README.md` files well-structured with clear headings (`#`, `##`, `###`), descriptive link texts (no bare URLs or generic "click here" links), and proper list semantics.
 
-<!--
-Explain what reporters can expect after submitting an accessibility issue,
-including acknowledgement, status updates, workarounds, expected timelines,
-and opportunities to verify a fix. Use commitments your project can
-consistently uphold.
--->
+---
 
-## Ownership and maintenance
+## 3. Supported Environments & Assistive Tools
 
-<!--
-Identify the team, role, or maintainer responsible for accessibility and
-describe their responsibilities to the project. Include the review cadence
-and how ownership transfers when responsibilities change.
--->
+Our public documentation and developer interfaces are evaluated for compatibility across:
 
-## Supported environments
+- **Screen Readers**: NVDA (Windows), JAWS (Windows), VoiceOver (macOS / iOS), and TalkBack (Android).
+- **Modern Browsers**: Google Chrome, Mozilla Firefox, Microsoft Edge, and Safari (desktop & mobile).
+- **Navigation**: Full keyboard navigation (Tab, Shift+Tab, Enter, Space, Arrow keys) across all Swagger documentation panels.
 
-<!--
-List the platforms, devices, browsers, input methods, and assistive
-technologies the project supports or has tested. Include versions where
-useful, note partial support, and avoid implying support for combinations
-that have not been evaluated.
--->
+---
 
-## Known limitations
+## 4. Reporting Accessibility Barriers
 
-<!--
-Describe known barriers in terms of the affected user experience, such as
-"videos do not have captions," rather than standards codes. Include
-available workarounds or equivalent access and link to tracked issues. If
-no limitations are currently documented, describe what has been tested
-instead of claiming that no barriers exist.
--->
+If you encounter an accessibility barrier while using our API, reading our developer documentation, or integrating with client applications, please let us know:
 
-## Feedback and improvements
+1. **How to Report**:
+   - Open an issue in our GitHub repository with the tag `accessibility`.
+   - Or contact our team at: `accessibility@teamstreakpromo.com` (or project maintainers).
+2. **Helpful Context to Include**:
+   - The endpoint, page URL, or documentation section where you encountered the barrier.
+   - The assistive technology used (e.g., NVDA, keyboard only, zoom magnifier).
+   - The observed behavior and the expected accessible experience.
+   - *Note: Disclosing personal disability details is never required.*
 
-<!--
-Explain how users and contributors can suggest improvements to this
-statement or the project's accessibility practices. Direct active
-accessibility barriers to the reporting process above.
--->
+---
+
+## 5. How We Respond
+
+- **Acknowledgment**: Accessibility reports are acknowledged within **2 business days**.
+- **Triage & Remediation**: Critical accessibility blockers (such as inaccessible authentication or unusable documentation) are treated as high priority bug fixes.
+- **Verification**: Reporters are invited (optionally) to review and verify the fix before release.
+
+---
+
+## 6. Continuous Improvement
+
+We view accessibility as an ongoing commitment. We regularly review our API documentation UI, error message clarity, and developer resources to eliminate friction and ensure an inclusive experience for all contributors and users.
