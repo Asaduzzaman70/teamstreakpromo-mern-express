@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { UserHostPoint, EventReferral } from './referral.model.js';
 import { User } from '../auth/auth.model.js';
 import { Event } from '../event/event.model.js';
+import '../businessProfile/businessProfile.model.js';
+import '../eventOrder/eventOrder.model.js';
 import type {
   ICreditReferralInput,
   IUserHostPointResponse,
@@ -160,7 +162,7 @@ export const processReferralPoints = async (
     {
       $inc: { points, totalEarned: points },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   // Sync global points for display
@@ -174,7 +176,7 @@ export const processReferralPoints = async (
     {
       $inc: { points, totalEarned: points },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   // Sync global points for display
@@ -226,7 +228,7 @@ export const deductHostPoints = async (
     {
       $inc: { points: -pointsToDeduct, totalSpent: pointsToDeduct },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!updatedLedger) {
@@ -266,7 +268,7 @@ export const refundHostPoints = async (
     {
       $inc: { points: pointsToRefund, totalSpent: -pointsToRefund },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: 'after' }
   );
 
   await User.findByIdAndUpdate(userObjId, {
@@ -279,7 +281,7 @@ export const refundHostPoints = async (
 };
 
 /**
- * Retrieves the referral history for the authenticated user.
+ * Retrieves the referral history for the authenticated user (both as referrer and referee).
  */
 export const getMyReferrals = async (
   userId: string | Types.ObjectId
@@ -287,8 +289,9 @@ export const getMyReferrals = async (
   const userObjId = new Types.ObjectId(userId.toString());
 
   const referrals = await EventReferral.find({
-    referrer: userObjId,
+    $or: [{ referrer: userObjId }, { referee: userObjId }],
   })
+    .populate('referrer', 'name email profileImage')
     .populate('referee', 'name email profileImage')
     .populate('eventId', 'title date location placeName')
     .populate({
@@ -298,5 +301,24 @@ export const getMyReferrals = async (
     })
     .sort({ createdAt: -1 });
 
-  return referrals;
+  return referrals.map((r: any) => {
+    const isReferrer =
+      r.referrer?._id?.toString() === userObjId.toString() ||
+      r.referrer?.toString() === userObjId.toString();
+
+    const hostDoc = r.hostId as any;
+    const hostDisplayName = hostDoc?.businessProfile?.businessName || hostDoc?.name || 'Event Host';
+
+    return {
+      _id: r._id,
+      role: isReferrer ? 'REFERRER' : 'REFEREE',
+      pointsAwarded: r.pointsAwarded,
+      status: r.status,
+      referrer: r.referrer,
+      referee: r.referee,
+      eventId: r.eventId,
+      hostName: hostDisplayName,
+      createdAt: r.createdAt,
+    };
+  });
 };
