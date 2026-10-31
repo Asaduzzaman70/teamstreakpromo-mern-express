@@ -1,5 +1,6 @@
 import { Schema, model, type Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'node:crypto';
 
 export type UserRole = 'USER' | 'HOST' | 'BUSINESS' | 'ADMIN';
 
@@ -14,6 +15,7 @@ export interface IUser extends Document {
   walletBalance: number;
   rating: number;
   sold: number;
+  referralCode?: string;
   refreshToken?: string;
   isAgeOver18: boolean;
   agreesToTerms: boolean;
@@ -85,6 +87,13 @@ const UserSchema = new Schema<IUser>(
       default: 0,
       min: [0, 'Sold count cannot be negative'],
     },
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      uppercase: true,
+    },
     refreshToken: {
       type: String,
       default: '',
@@ -134,8 +143,12 @@ UserSchema.virtual('businessProfile', {
 UserSchema.set('toJSON', { virtuals: true });
 UserSchema.set('toObject', { virtuals: true });
 
-// Pre-save hook to hash password
+// Pre-save hook to hash password and assign referralCode
 UserSchema.pre('save', async function (this: IUser) {
+  if (!this.referralCode) {
+    this.referralCode = crypto.randomBytes(4).toString('hex').toUpperCase();
+  }
+
   if (!this.isModified('password')) {
     return;
   }

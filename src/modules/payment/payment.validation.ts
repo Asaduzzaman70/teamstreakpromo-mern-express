@@ -38,9 +38,7 @@ export const createCheckoutSessionSchema = z.object({
   eventId: z.string({ message: 'eventId is required' }).trim().min(1, 'eventId cannot be empty'),
   tickets: z.array(ticketItemSchema).optional().default([]),
   rewards: z.array(rewardItemSchema).optional().default([]),
+  referralCode: z.string().trim().optional(),
   successUrl: z.string().url('successUrl must be a valid URL').optional(),
   cancelUrl: z.string().url('cancelUrl must be a valid URL').optional(),
 });
-
-
-

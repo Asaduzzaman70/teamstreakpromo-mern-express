@@ -1,12 +1,14 @@
 # Payment Module (`src/modules/payment`)
 
-The **Payment Module** is the financial backbone of TeamStreak Promo. It coordinates all monetary transactions through Stripe, including ticket checkout sessions, Stripe Connect Express host onboarding, automated escrow payouts, event order refunds, and real-time Stripe webhooks.
+The **Payment Module** is the financial backbone of TeamStreak Promo. It coordinates all monetary transactions through Stripe, including ticket checkout sessions, Stripe Connect Express host onboarding, automated escrow payouts, event order refunds, peer-to-peer referral point processing, and real-time Stripe webhooks.
 
 ---
 
 ## 1. Overview & Capabilities
 
-- **Stripe Checkout Sessions**: Creates dynamic Stripe Checkout URLs with ticket line items, host identification metadata, and success/cancel callback redirects.
+- **Stripe Checkout Sessions**: Creates dynamic Stripe Checkout URLs with ticket line items, host identification metadata, optional referral codes (`referralCode`), and success/cancel callback redirects.
+- **Peer-to-Peer Event Referral Rewards**: Accepts a `referralCode` during checkout. Upon successful payment in webhook, awards 1 host-scoped point to the referrer (User 1) and 1 host-scoped point to the buyer (User 2) under that event's host.
+- **Host-Scoped Points Verification & Deduction**: Verifies that users redeeming event rewards have sufficient points with that event's host (`UserHostPoint`). Deducts points directly from that host's balance upon checkout completion.
 - **Stripe Connect Express Onboarding**: Generates Stripe Connect onboarding account links (`/create-connect-account`) allowing organizers to link bank accounts for receiving direct ticket payouts.
 - **Stripe Express Dashboard Link**: Generates short-lived login links (`/create-login-link`) so hosts can view their Stripe earnings and tax documents directly.
 - **Automated Payout Sweeper**: A background recurring scheduler (`payout.scheduler.ts`) executes every 15 minutes to automatically transfer event ticket proceeds to hosts whose events have finished.
@@ -37,8 +39,8 @@ Base Prefix: `/api/payments`
 
 | Method | Endpoint | Auth Required | Roles | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/webhook` | No (Stripe HMAC) | Stripe | Ingests Stripe webhook events (`checkout.session.completed`, `account.updated`). |
-| `POST` | `/create-checkout-session` | Yes | Logged-in | Creates a Stripe Checkout session for event ticket purchase. Returns checkout URL. |
+| `POST` | `/webhook` | No (Stripe HMAC) | Stripe | Ingests Stripe webhook events (`checkout.session.completed`, `account.updated`), creates orders, and credits referral points. |
+| `POST` | `/create-checkout-session` | Yes | Logged-in | Creates a Stripe Checkout session for event ticket purchase. Accepts optional `referralCode`. |
 | `POST` | `/create-connect-account` | Yes | `HOST`, `BUSINESS`, `ADMIN` | Initializes Stripe Connect Express account and returns onboarding URL. |
 | `GET` | `/account-status` | Yes | `HOST`, `BUSINESS`, `ADMIN` | Checks current status of organizer's Stripe Connect account (charges/payouts enabled). |
 | `POST` | `/create-login-link` | Yes | `HOST`, `BUSINESS`, `ADMIN` | Generates a single-use login link to the host's Stripe Express dashboard. |
@@ -58,8 +60,9 @@ sequenceDiagram
     participant API as Payment Controller
     participant Stripe as Stripe API
     participant EventOrder as EventOrder Module
+    participant Referral as Referral Module
 
-    User->>API: POST /api/payments/create-checkout-session
+    User->>API: POST /api/payments/create-checkout-session (with optional referralCode)
     API->>Stripe: stripe.checkout.sessions.create()
     Stripe-->>API: sessionUrl
     API-->>User: { url: sessionUrl }
@@ -67,6 +70,7 @@ sequenceDiagram
     Stripe->>API: POST /api/payments/webhook (checkout.session.completed)
     API->>API: Verify Stripe webhook signature
     API->>EventOrder: createEventOrder() -> Generate QR Code & decrement stock
+    API->>Referral: processReferralPoints() -> +1 Host Point to Referrer & Buyer
 ```
 
 ### Automated Payout Sweeper

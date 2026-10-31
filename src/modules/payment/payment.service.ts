@@ -10,6 +10,8 @@ import { Event } from '../event/event.model.js';
 import { Order } from '../order/order.model.js';
 import { EventOrder } from '../eventOrder/eventOrder.model.js';
 import { EventOrderService } from '../eventOrder/eventOrder.service.js';
+import { getUserHostPoints, processReferralPoints, deductHostPoints } from '../referral/referral.service.js';
+import { UserHostPoint } from '../referral/referral.model.js';
 import type {
   CreateConnectAccountInput,
   ICreateConnectAccountResponse,
@@ -322,9 +324,10 @@ const createCheckoutSession = async (
     });
   }
 
-  if (totalPointsRequired > 0 && user.totalPoints < totalPointsRequired) {
+  const currentHostPoints = await getUserHostPoints(user._id, event.hostId);
+  if (totalPointsRequired > 0 && currentHostPoints < totalPointsRequired) {
     throw new AppError(
-      `Insufficient points to claim reward(s). You need ${totalPointsRequired} points, but you have ${user.totalPoints} points.`,
+      `Insufficient points to claim reward(s) from this host. You need ${totalPointsRequired} points, but you have ${currentHostPoints} points for this host.`,
       400
     );
   }
@@ -345,6 +348,7 @@ const createCheckoutSession = async (
       tickets: JSON.stringify(validatedTickets),
       rewards: JSON.stringify(validatedRewards),
       totalTicketQuantity: totalTicketQuantity.toString(),
+      referralCode: payload.referralCode?.trim() || '',
       type: 'EVENT_TICKET',
     },
     success_url: returnSuccessUrl,
@@ -392,7 +396,7 @@ const handleWebhook = async (
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.payment_status === 'paid' || session.status === 'complete') {
         const metadata = session.metadata || {};
-        const { userId, eventId, tickets: rawTicketsJson, rewards: rawRewardsJson, totalTicketQuantity: rawTotalQty } = metadata;
+        const { userId, eventId, tickets: rawTicketsJson, rewards: rawRewardsJson, totalTicketQuantity: rawTotalQty, referralCode } = metadata;
 
         if (userId && eventId) {
           // Idempotency check: verify if EventOrder for this session already exists
@@ -442,8 +446,9 @@ const handleWebhook = async (
                 pointsEarned: totalTicketQuantity,
               };
 
+              let createdOrderResult: any;
               try {
-                await EventOrderService.createEventOrder(eventOrderPayload);
+                createdOrderResult = await EventOrderService.createEventOrder(eventOrderPayload);
               } catch (orderErr: any) {
                 // If duplicate key error (code 11000) on stripeSessionId from concurrent webhook delivery, exit idempotently
                 if (orderErr?.code === 11000) {
@@ -451,6 +456,22 @@ const handleWebhook = async (
                   break;
                 }
                 throw orderErr;
+              }
+
+              // Process referral reward points (User 1 referrer & User 2 referee each earn 1 point for this host)
+              if (referralCode && referralCode.trim()) {
+                try {
+                  await processReferralPoints({
+                    referrerCode: referralCode.trim(),
+                    buyerId: userId,
+                    eventId,
+                    hostId: eventDoc.hostId.toString(),
+                    eventOrderId: createdOrderResult?._id?.toString(),
+                    points: 1,
+                  });
+                } catch (refErr: any) {
+                  logger.error('[handleWebhook] Error processing referral points:', refErr);
+                }
               }
 
               // 2. Save Reward Orders in order module and calculate points spent atomically
@@ -543,20 +564,25 @@ const handleWebhook = async (
                 }
               }
 
-              // 3. Atomically update user points (gain 1 point per ticket, minus points spent on rewards)
-              const netPointsDelta = totalTicketQuantity - totalPointsSpent;
-              if (netPointsDelta >= 0) {
-                await User.findByIdAndUpdate(userId, {
-                  $inc: { totalPoints: netPointsDelta },
-                });
-              } else {
-                const pointsToDeduct = Math.abs(netPointsDelta);
-                const updatedBuyer = await User.findOneAndUpdate(
-                  { _id: userId, totalPoints: { $gte: pointsToDeduct } },
-                  { $inc: { totalPoints: -pointsToDeduct } }
+              // 3. Atomically update host-scoped points:
+              // Buyer earns 1 host point per ticket bought
+              if (totalTicketQuantity > 0) {
+                await UserHostPoint.findOneAndUpdate(
+                  { user: new Types.ObjectId(userId), hostId: eventDoc.hostId },
+                  { $inc: { points: totalTicketQuantity, totalEarned: totalTicketQuantity } },
+                  { upsert: true, new: true }
                 );
-                if (!updatedBuyer) {
-                  await User.findByIdAndUpdate(userId, { $set: { totalPoints: 0 } });
+                await User.findByIdAndUpdate(userId, {
+                  $inc: { totalPoints: totalTicketQuantity },
+                });
+              }
+
+              // Deduct points spent on rewards from this host's balance
+              if (totalPointsSpent > 0) {
+                try {
+                  await deductHostPoints(userId, eventDoc.hostId, totalPointsSpent);
+                } catch (deductErr: any) {
+                  logger.error('[handleWebhook] Error deducting host points:', deductErr);
                 }
               }
             }

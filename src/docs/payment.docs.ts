@@ -269,7 +269,7 @@ export const paymentDocs = {
       tags: ['Payments'],
       summary: 'Create Stripe Checkout Session for Event Ticket & Rewards Purchase',
       description:
-        'Validates ticket availability across price categories and reward availability for an event, then creates a Stripe Checkout Session. Upon payment completion, user points are awarded (1 point per ticket), ticket orders are saved to eventOrder, and reward redemption orders are saved to order.',
+        'Validates ticket availability across price categories and reward availability for an event, then creates a Stripe Checkout Session. Supports optional referralCode to award 1 host-scoped point each to referrer and buyer upon payment completion. Ticket orders are saved to eventOrder, and reward redemption orders are saved to order.',
       security: [
         {
           bearerAuth: [],
@@ -327,6 +327,12 @@ export const paymentDocs = {
                       },
                     },
                   },
+                },
+                referralCode: {
+                  type: 'string',
+                  description:
+                    'Optional referral code from an existing user (User 1). When User 2 buys tickets with this code, both User 1 and User 2 receive 1 host-scoped reward point.',
+                  example: 'A8B2C3D4',
                 },
                 successUrl: {
                   type: 'string',

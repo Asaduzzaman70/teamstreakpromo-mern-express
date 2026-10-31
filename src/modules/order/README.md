@@ -11,9 +11,10 @@ The **Order Module** manages loyalty reward point redemptions across the TeamStr
   - `MARKETPLACE`: Redeems products or vouchers listed by a `BUSINESS` user.
   - `EVENT`: Redeems loyalty items offered by an event `HOST`.
 - **Atomic Balance & Inventory Checks**:
-  - Validates user point balance (`user.totalPoints >= totalPointsRequired`).
-  - Validates item availability (`quantity - claimQuantity >= requestedQuantity`).
-  - Atomically deducts user points and increments item `claimQuantity`.
+  - For `EVENT` items: Validates that the user has sufficient points scoped to that specific host (`UserHostPoint.points >= totalPointsRequired`). Points earned from Host A cannot be used on Host B's rewards.
+  - For `MARKETPLACE` items: Validates user total points (`user.totalPoints >= totalPointsRequired`).
+  - Validates item availability (`quantity - claimQuantity >= requestedQuantity` or event reward stock).
+  - Atomically deducts user points from the host ledger and reserves stock.
 - **Redemption QR Pass**: Generates a scannable QR code PNG saved to AWS S3.
 - **In-Person Verification & Redemption**: The merchant (`BUSINESS`), host (`HOST`), or on-ground `Employee` scans the QR code and calls `PATCH /:id/redeem` to mark the order `REDEEMED`.
 - **Review Eligibility Gate**: Completing an order unlocks review eligibility in `src/modules/partnerReview`.

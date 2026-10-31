@@ -9,6 +9,7 @@ import { Event } from '../event/event.model.js';
 import { Employee } from '../employee/employee.model.js';
 import { Order } from './order.model.js';
 import type { IOrder } from './order.interface.js';
+import { getUserHostPoints, deductHostPoints } from '../referral/referral.service.js';
 
 const createOrder = async (
   userId: string,
@@ -168,8 +169,13 @@ const createOrder = async (
 
     const totalPointsRequired = reward.pointsRequired * quantity;
 
-    if (user.totalPoints < totalPointsRequired) {
-      throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
+    // Validate host-scoped points: points earned from Host A can only be used on Host A's rewards
+    const currentHostPoints = await getUserHostPoints(user._id, event.hostId);
+    if (currentHostPoints < totalPointsRequired) {
+      throw new AppError(
+        `Insufficient points for this host's rewards. You have ${currentHostPoints} points with this host, but need ${totalPointsRequired} points.`,
+        400
+      );
     }
 
     // 1. Atomically reserve event reward stock
@@ -191,23 +197,16 @@ const createOrder = async (
       throw new AppError('Insufficient reward stock available', 400);
     }
 
-    // 2. Atomically deduct user points
-    const updatedUser = await User.findOneAndUpdate(
-      {
-        _id: user._id,
-        totalPoints: { $gte: totalPointsRequired },
-      },
-      { $inc: { totalPoints: -totalPointsRequired } },
-      { new: true }
-    );
-
-    if (!updatedUser) {
+    // 2. Atomically deduct points from this specific host's ledger
+    try {
+      await deductHostPoints(user._id, event.hostId, totalPointsRequired);
+    } catch (deductErr) {
       // Roll back event reward stock reservation
       await Event.updateOne(
         { _id: event._id, 'rewards._id': targetRewardId },
         { $inc: { 'rewards.$.stock': quantity } }
       );
-      throw new AppError(`Insufficient points. You need ${totalPointsRequired} points.`, 400);
+      throw deductErr;
     }
 
     orderData.hostId = event.hostId as any;

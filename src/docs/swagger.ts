@@ -20,6 +20,7 @@ import { reviewDocs } from './review.docs.js';
 import { partnerReviewDocs } from './partnerReview.docs.js';
 import { hostAnalyticsDocs } from './hostAnalytics.docs.js';
 import { businessPartnerAnalyticsDocs } from './businessPartnerAnalytics.docs.js';
+import { referralDocs } from './referral.docs.js';
 
 const options: swaggerJsdoc.Options = {
   definition: {
@@ -69,6 +70,7 @@ const options: swaggerJsdoc.Options = {
       ...partnerReviewDocs,
       ...hostAnalyticsDocs,
       ...businessPartnerAnalyticsDocs,
+      ...referralDocs,
     },
   },
   apis: [],
