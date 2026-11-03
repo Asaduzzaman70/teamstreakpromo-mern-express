@@ -190,11 +190,21 @@ export const registerUserService = async (
     expirationMinutes: 10,
   });
 
-  await sendOtpEmail({
-    to: user.email,
-    otp,
-    purposeTitle: 'Account Activation',
-  });
+  try {
+    await sendOtpEmail({
+      to: user.email,
+      otp,
+      purposeTitle: 'Account Activation',
+    });
+  } catch (emailErr: any) {
+    logger.error('[registerUserService] Failed to send activation OTP email:', emailErr);
+    // Rollback partially created unverified user to prevent leaving the account in limbo
+    await User.findByIdAndDelete(user._id);
+    throw new AppError(
+      'Failed to send activation email. Please check your email address or network settings and try again.',
+      500
+    );
+  }
 
   return {
     message: 'User registered successfully. Please verify your email with the activation OTP sent to your inbox.',

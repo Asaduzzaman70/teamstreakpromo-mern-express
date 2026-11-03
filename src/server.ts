@@ -1,3 +1,10 @@
+import dns from 'dns';
+
+// Force IPv4 first to avoid IPv6 connection issues (e.g. ECONNREFUSED on port 465)
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 import mongoose from 'mongoose';
 import app from './app.js';
 import config from './config/config.js';

@@ -1,3 +1,7 @@
+import dns from 'dns';
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder('ipv4first');
+}
 import nodemailer from 'nodemailer';
 import config from '../config/config.js';
 
@@ -54,6 +58,9 @@ export const sendEmail = async (options: SendEmailOptions): Promise<void> => {
     auth: {
       user: config.smtpUser,
       pass: config.smtpPass,
+    },
+    tls: {
+      rejectUnauthorized: config.smtpRejectUnauthorized,
     },
   });
 

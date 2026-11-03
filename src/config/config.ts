@@ -19,6 +19,7 @@ interface Config {
   smtpUser: string;
   smtpPass: string;
   emailFrom: string;
+  smtpRejectUnauthorized: boolean;
   superAdminEmail: string;
   awsAccessKeyId: string;
   awsSecretAccessKey: string;
@@ -45,6 +46,7 @@ const config: Config = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || 'TeamStreak Promo <noreply@teamstreakpromo.com>',
+  smtpRejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED === 'false' ? false : true,
   superAdminEmail: process.env.SUPER_ADMIN_EMAIL || process.env.SMTP_USER || 'wispdark981@gmail.com',
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
