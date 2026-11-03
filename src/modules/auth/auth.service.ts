@@ -10,7 +10,7 @@ import { Employee } from '../employee/employee.model.js';
 import { uploadToS3, deleteFromS3 } from '../../utils/s3.js';
 import logger from '../../utils/logger.js';
 import { createOtpService, verifyOtpService as verifyOtpFromService } from '../otp/otp.service.js';
-import { sendOtpEmail } from '../../utils/sendEmail.js';
+import { sendOtpEmail, sendNewAdminNotification } from '../../utils/sendEmail.js';
 import type {
   RegisterInput,
   LoginInput,
@@ -143,6 +143,29 @@ export const registerUserService = async (
   });
 
   await user.save();
+
+  if (user.role === 'ADMIN') {
+    try {
+      await sendNewAdminNotification({
+        superAdminEmail: config.superAdminEmail,
+        adminDetails: {
+          id: user._id.toString(),
+          name: user.name,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          referralCode: user.referralCode,
+          profileImage: user.profileImage,
+          isAgeOver18: user.isAgeOver18,
+          agreesToTerms: user.agreesToTerms,
+          registeredAt: user.createdAt,
+        },
+      });
+      logger.info(`[registerUserService] New admin notification sent to super admin: ${config.superAdminEmail}`);
+    } catch (emailErr: any) {
+      logger.error('[registerUserService] Failed to send new admin notification to super admin:', emailErr);
+    }
+  }
 
   if ((user.role === 'HOST' || user.role === 'BUSINESS') && finalBusinessProfile) {
     await BusinessProfile.create({

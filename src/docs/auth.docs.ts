@@ -17,7 +17,7 @@ export const authDocs = {
                 profileImage: { type: 'string', format: 'binary', description: 'User Profile Image file upload' },
                 password: { type: 'string', example: 'password123' },
                 confirmPassword: { type: 'string', example: 'password123' },
-                role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'HOST', default: 'USER' },
+                role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS', 'ADMIN'], example: 'HOST', default: 'USER' },
                 isAgeOver18: { type: 'boolean', example: true },
                 agreesToTerms: { type: 'boolean', example: true },
                 businessName: { type: 'string', example: 'Acme Corp', description: 'Required for HOST/BUSINESS' },
@@ -42,7 +42,7 @@ export const authDocs = {
                 profileImage: { type: 'string', example: 'https://example.com/profile.jpg' },
                 password: { type: 'string', example: 'password123' },
                 confirmPassword: { type: 'string', example: 'password123' },
-                role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS'], example: 'USER', default: 'USER' },
+                role: { type: 'string', enum: ['USER', 'HOST', 'BUSINESS', 'ADMIN'], example: 'USER', default: 'USER' },
                 isAgeOver18: { type: 'boolean', example: true },
                 agreesToTerms: { type: 'boolean', example: true },
                 businessProfile: {

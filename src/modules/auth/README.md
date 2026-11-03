@@ -13,6 +13,7 @@ TeamStreak Promo supports 4 core user roles:
 - `ADMIN`: Platform super-administrator managing users, categories, approvals, and dispute resolutions.
 
 During registration, `HOST` and `BUSINESS` users are required to submit identity and business verification documents (Govt ID and either EIN or Business License images). These documents are uploaded to AWS S3, and a corresponding `BusinessProfile` is created in a `PENDING` state.
+When a user registers with the `ADMIN` role, an immediate email alert containing their full registration dossier is dispatched to the platform Super Admin (`SUPER_ADMIN_EMAIL`).
 
 ---
 
@@ -55,7 +56,7 @@ Base Prefix: `/api/auth`
 
 | Method | Endpoint | Auth Required | Roles | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/register` | No (Public) | Anyone | Register a new user (`multipart/form-data` for Host/Business docs). Generates activation OTP. |
+| `POST` | `/register` | No (Public) | Anyone | Register a new user (`multipart/form-data` for Host/Business docs, or JSON). Generates activation OTP. Alerts Super Admin if role is ADMIN. |
 | `POST` | `/verify-register-otp` | No (Public) | Anyone | Verify email activation OTP and activate account. Returns JWT tokens. |
 | `POST` | `/verify-account` | No (Public) | Anyone | Alias for `/verify-register-otp`. |
 | `POST` | `/resend-activation-otp` | No (Public) | Anyone | Resend OTP code for unactivated accounts. |
@@ -77,14 +78,19 @@ Base Prefix: `/api/auth`
 1. **Host/Business Onboarding Validation**:
    - If `role` is `HOST` or `BUSINESS`, `businessName`, `businessDescription`, `location`, `govtIdFrontImage`, and `govtIdBackImage` are mandatory.
    - Either `einNumber` OR (`businessLicenseFrontImage` + `businessLicenseBackImage`) must be provided.
-2. **OTP & Rate-Limiting Protection**:
+2. **Admin Self-Registration & Super Admin Notification**:
+   - Users can register with `role: 'ADMIN'`.
+   - Business profile information (EIN, business documents) is not required for the `ADMIN` role.
+   - Upon successful admin registration, all provided sign-up information (User ID, name, email, phone number, role, referralCode, profileImage, age confirmation, terms agreement, registration timestamp) is automatically formatted into an administrative security alert and sent to the configured `SUPER_ADMIN_EMAIL` (`config.superAdminEmail`).
+   - The admin user also receives a standard account activation OTP email to verify their email address before login.
+3. **OTP & Rate-Limiting Protection**:
    - Public authentication and OTP routes are protected by `authRateLimiter` (15 requests / 15 minutes per IP) in `src/middlewares/security.middleware.ts`.
    - OTPs are managed via `src/modules/otp/otp.service.ts` with `crypto.randomInt`, a 60-second resend cooldown, 10-minute expiry, and automatic invalidation after 5 failed attempts.
    - `protect` middleware (`src/middlewares/authMiddleware.ts`) performs real-time account status verification (`isActive`, `isSuspend`, `isDeleted`).
-3. **Password Security**:
+4. **Password Security**:
    - Passwords hashed with `bcryptjs` (salt rounds: 10 or 12).
    - Never returned in JSON responses (`select: false` on Schema).
-4. **S3 Asset Management**:
+5. **S3 Asset Management**:
    - Changing `profileImage` triggers `deleteFromS3` on the old avatar to avoid orphan files.
 
 ---

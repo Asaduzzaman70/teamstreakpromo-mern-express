@@ -16,8 +16,8 @@ export const registerSchema = z
     phoneNumber: z.string().trim().optional(),
     profileImage: z.string().trim().optional(),
     role: z
-      .enum(['USER', 'HOST', 'BUSINESS'], {
-        message: 'Role must be USER, HOST, or BUSINESS',
+      .enum(['USER', 'HOST', 'BUSINESS', 'ADMIN'], {
+        message: 'Role must be USER, HOST, BUSINESS, or ADMIN',
       })
       .optional()
       .default('USER'),
